@@ -13,7 +13,7 @@ No acceptance is supplied or bypassed by the runtime.
 
 ## Running the Windows build
 
-[Already have a build? Download the small stability and controls update](https://github.com/kdmallen/sim3/blob/main/downloads/Sims3-Stability-Update.zip).
+[Already have a build? Download the small smooth-tilt update](https://github.com/kdmallen/sim3/blob/main/downloads/Sims3-Smooth-Tilt-Update.zip).
 Close the game, extract the update into the folder containing your existing
 `Sims3.exe`, and replace the matching files. Start `Sims3.exe` again. Saves stay
 in AppData. Use **Download raw file** on the GitHub file page.
@@ -34,7 +34,7 @@ If needed, Ctrl+wheel over the slider's middle calibrates its position.
 | Mouse click / drag | Touch, camera pan, menu scrolling |
 | Mouse wheel | Camera zoom |
 | Arrow keys / WASD | Phone tilt |
-| F4 / F6 (hold) | Tilt the screen left / right |
+| F4 / F6 (hold) | Gradually lean left / right; release to level |
 | F5 | Phone shake; hold for repeated shaking |
 | F7 | Quick upward jerk for fishing |
 | Escape | Back |
@@ -61,11 +61,11 @@ A game fault reports its real error and writes a log; unknown platform APIs stop
 - Rendered the EA splash, Sims splash, language selection, and 3D title/agreement scene using real GLES draws.
 - Executed pointer callbacks in the original ARM game; supplied isolated save-file services.
 - Built a native PE x64 GUI entry point with bundled Python 3.13.17, Unicorn 2.1.4, and ANGLE.
-- Passed 28 ABI/rendering regression tests on Linux and the packaged Windows Python under Wine.
+- Passed 29 ABI/rendering regression tests on Linux and the packaged Windows Python under Wine.
 - Passed native Win32 mouse, keyboard tilt, F5 shake, and orderly window-close smoke checks under Wine.
 - Played the original MP3 music and PCM effects through WinMM/MCI under Wine;
   native audio tests cover overlapping effects, looping, volume, pause/resume, and stop.
-- Verified F4/F6 against the original game's ARM landscape-axis conversion.
+- Verified smooth F4/F6 against the original ARM fishing steering and pull detector.
 - Matched GPU-buffer deletion to GLES state: detach bindings/attributes, clear
   CPU shadows, and translate subsequent client indices to checked host memory.
 
@@ -76,6 +76,14 @@ not reproduced here; the user reports the speed/sound build no longer crashes.
 A separate freeze after repeated fishing remains unverified. Extended play here
 included sleep/nap actions, meals, and a home-to-town transition; the complete
 four-sleep/job/social/job-change sequence was not completed.
+
+The smooth-tilt update ramps F4/F6 at 45 degrees per second, capped at 30 degrees,
+then eases back to level on release. It rotates a 1g gravity vector rather than
+adding sideways acceleration. All three SDK axes share one sample. Fishing uses
+landscape Y for steering, so these controls now drive SDK X with the matching
+sign. The original fishing detector measured a false pull of 0.414214g with the
+old vector and 0.000022g at the new maximum tilt. Both steering directions were
+checked in original ARM code; full manual fishing play remains unverified.
 
 Character creation and typed naming were checked in the real game, followed by
 entering the house, saving, restarting, and loading the saved Sim. Mouse-wheel

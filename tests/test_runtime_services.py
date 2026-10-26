@@ -337,22 +337,49 @@ class RuntimeServices(unittest.TestCase):
         now[0] += 1
         self.assertEqual(device.acceleration("X"), 1000)
 
-    def test_function_key_tilts_use_landscape_axis_and_f7_keeps_jerk(self):
+    def test_function_key_tilts_ramp_rotate_gravity_and_keep_f7_jerk(self):
         device = self.runtime.input
+        tick = [0.0]
+        device.clock = lambda: tick[0]
         device.accelerometer_active = True
         device.key(115, True)
-        self.assertEqual(device.acceleration("Y"), -1000)
         self.assertEqual(device.acceleration("X"), 0)
+        tick[0] = 0.25
+        x = device.acceleration("X")
+        self.assertTrue(-500 < x < 0)
+        y, z = device.acceleration("Y"), device.acceleration("Z")
+        self.assertLess(abs((x*x+y*y+z*z)**0.5 - 1000), 1)
         device.key(115, False)
+        self.assertEqual(device.acceleration("X"), x)  # No release discontinuity.
         device.key(117, True)
-        self.assertEqual(device.acceleration("Y"), 1000)
+        tick[0] += 1
+        self.assertEqual(device.acceleration("X"), 500)
         self.assertIsNone(device.jerk_started)
         device.key(117, False)
-        self.assertEqual(device.acceleration("Y"), 0)
+        tick[0] += 0.25
+        self.assertTrue(0 < device.acceleration("X") < 500)
+        tick[0] += 2
+        self.assertEqual(device.acceleration("X"), 0)
         self.assertFalse(device.keyboard_events)
         device.key(118, True)
         self.assertIsNotNone(device.jerk_started)
         self.assertEqual(device.acceleration("Z"), 3200)
+
+    def test_tilt_sensor_sample_stays_consistent_across_delayed_axis_reads(self):
+        import math
+        device = self.runtime.input
+        tick = [0.0]
+        device.clock = lambda: tick[0]
+        device.accelerometer_active = True
+        device.key(117, True)
+        tick[0] = 0.2
+        y = device.acceleration("Y")
+        tick[0] = 0.3
+        x = device.acceleration("X")
+        tick[0] = 0.4
+        z = device.acceleration("Z")
+        self.assertLess(abs(math.sqrt(x*x+y*y+z*z)-1000), 1)
+        self.assertGreater(device.acceleration("X"), x)
 
     def test_runtime_checkpoint_preserves_failure_state_without_touching_saves(self):
         import json

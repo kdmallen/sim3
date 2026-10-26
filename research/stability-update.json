@@ -67,5 +67,6 @@
     "zip_crc_validation_passed": true,
     "private_saves_and_cache_excluded": true,
     "original_exe_patched_launch_frames": 3
-  }
+  },
+  "superseded_by": "smooth-tilt-update.json"
 }

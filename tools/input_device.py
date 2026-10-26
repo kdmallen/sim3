@@ -27,6 +27,10 @@ class InputDevice:
         self.clock = clock
         self.shake_started = None
         self.jerk_started = None
+        self.tilt_angle = 0.0
+        self.tilt_updated = self.clock()
+        self.tilt_sample = None
+        self.tilt_sample_axes = set()
         self.wheel_remainder = 0
         self.wheel_steps = 0
         self.zoom_anchor = None
@@ -68,6 +72,10 @@ class InputDevice:
         self.pointer_events.append((0, struct.pack("<4i", button, int(pressed), self.x, self.y)))
 
     def key(self, key, pressed):
+        if key in (115, 117):
+            self.advance_tilt(self.clock())  # Integrate the previous held state first.
+            self.tilt_sample = None
+            self.tilt_sample_axes.clear()
         if pressed:
             self.held_keys.add(key)
         else:
@@ -212,6 +220,31 @@ class InputDevice:
         key = next((physical for physical, sdk in self.SDK_KEYS.items() if sdk == key), key)
         return int(key in self.keys) | self.key_edges.get(key, 0)
 
+    def advance_tilt(self, now):
+        elapsed = max(0.0, now - self.tilt_updated)
+        self.tilt_updated = now
+        direction = int(117 in self.held_keys) - int(115 in self.held_keys)
+        if direction:
+            target = direction * math.radians(30)
+            step = math.radians(45) * elapsed
+            self.tilt_angle += max(-step, min(step, target - self.tilt_angle))
+        else:
+            self.tilt_angle *= math.exp(-elapsed / 0.25)
+            if abs(self.tilt_angle) < math.radians(0.01):
+                self.tilt_angle = 0.0
+
+    def tilt_gravity(self, axis, now):
+        # Reuse one vector across Y/X/Z polls, even at a slow frame rate.
+        if self.tilt_sample is None or axis in self.tilt_sample_axes:
+            self.advance_tilt(now)
+            self.tilt_sample_axes.clear()
+            self.tilt_sample = (round(1000 * math.sin(self.tilt_angle)), 0,
+                                round(1000 * math.cos(self.tilt_angle)))
+        self.tilt_sample_axes.add(axis)
+        if self.tilt_angle or 115 in self.held_keys or 117 in self.held_keys:
+            return self.tilt_sample[("X", "Y", "Z").index(axis)]
+        return None
+
     def acceleration(self, axis):
         if not self.accelerometer_active:
             return 0
@@ -227,11 +260,12 @@ class InputDevice:
                         1000 + round(2400 * math.cos(elapsed * 41)))
         if self.jerk_started is not None and 0 <= now - self.jerk_started < 0.12:
             return 0 if axis == "X" else -3200 if axis == "Y" else 3200
+        tilt = self.tilt_gravity(axis, now)
+        if tilt is not None:
+            return tilt
         if axis == "X":
             return 1000 * (int(39 in self.keys or 68 in self.keys) - int(37 in self.keys or 65 in self.keys))
         if axis == "Y":
-            # The original landscape adapter maps SDK Y to screen X.
-            # F4/F6 therefore tilt the screen left/right along SDK Y.
-            return 1000 * (int(40 in self.keys or 83 in self.keys or 117 in self.held_keys)
-                           - int(38 in self.keys or 87 in self.keys or 115 in self.held_keys))
+            return 1000 * (int(40 in self.keys or 83 in self.keys)
+                           - int(38 in self.keys or 87 in self.keys))
         return 1000

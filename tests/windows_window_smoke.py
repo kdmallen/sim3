@@ -39,13 +39,17 @@ def main():
         send(window.handle, 0x0101, 116, 0)
         tick[0] += 1.0
         send(window.handle, 0x0100, 115, 0)
-        assert runtime.input.acceleration("Y") == -1000
+        assert runtime.input.acceleration("X") == 0
+        tick[0] += 1
+        assert runtime.input.acceleration("X") == -500
         send(window.handle, 0x0101, 115, 0)
         send(window.handle, 0x0100, 117, 0)
-        assert runtime.input.acceleration("Y") == 1000
+        tick[0] += 2
+        assert runtime.input.acceleration("X") == 500
         assert runtime.input.jerk_started is None
         send(window.handle, 0x0101, 117, 0)
-        assert runtime.input.acceleration("Y") == 0
+        tick[0] += 2
+        assert runtime.input.acceleration("X") == 0
         runtime.input.device_events.clear()
         send(window.handle, 0x0100, 68, 0)
         send(window.handle, 0x0201, 1, position)

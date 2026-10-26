@@ -83,13 +83,13 @@ def build(apk, obb, dependencies, destination, launcher):
     for name in ("python313._pth", "Sims3._pth"):
         (destination / name).write_text(isolation)
     (destination / "START HERE.txt").write_text(
-        "THE SIMS 3 MOBILE - STABILITY AND CONTROLS UPDATE 4\n\n"
+        "THE SIMS 3 MOBILE - SMOOTH TILT UPDATE 5\n\n"
         "Extract the ENTIRE folder, then double-click Sims3.exe.\n"
         "Keep the other files beside it. No separate emulator or Python install is needed.\n"
         "Windows 11 x64 is the intended target.\n\n"
         "Click and drag with the mouse for touchscreen controls. Type using the keyboard.\n"
         "Mouse wheel zooms; Ctrl+wheel over the slider middle calibrates zoom.\n"
-        "F4/F6 (hold) tilt the screen left/right; F5 shakes; F7 makes an upward jerk.\n"
+        "F4/F6 gradually lean left/right (hold); release to level. F5 shakes; F7 jerks upward.\n"
         "Arrow keys / WASD also tilt. Switching windows keeps gameplay running.\n"
         "F1 shows controls; F3 toggles frame rate. Close the window to exit.\n"
         "The first launch prepares game files and may take a short while.\n"
@@ -100,7 +100,7 @@ def build(apk, obb, dependencies, destination, launcher):
         "EA's agreement screen is left for you to review and accept in the game.\n"
         "Name prompts accept normal keyboard typing; Enter confirms, Escape cancels.\n")
     (destination / "version.json").write_text(json.dumps({
-        "version": "stability-4", "game_version": "1.6.11", "tests_passed": 28,
+        "version": "smooth-tilt-5", "game_version": "1.6.11", "tests_passed": 29,
         "audio_implemented": True,
         "shake_money_cheat_confirmed": False,
     }, indent=2) + "\n")

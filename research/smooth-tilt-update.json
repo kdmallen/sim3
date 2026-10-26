@@ -1,0 +1,33 @@
+{
+  "version": "smooth-tilt-5",
+  "tests": {
+    "linux_passed": 29,
+    "windows_under_wine_passed": 29,
+    "native_keys": "passed",
+    "original_arm_fishing_steering_and_pull_detector": "passed"
+  },
+  "motion": {
+    "max_angle_degrees": 30,
+    "held_rate_degrees_per_second": 45,
+    "return_time_constant_seconds": 0.25,
+    "sdk_axis": "X",
+    "fishing_steering_axis": "landscape Y = -SDK X",
+    "gravity_milli_g": 1000,
+    "coherent_xyz_sample": true,
+    "f5_unchanged": true
+  },
+  "original_game_evidence": {
+    "pull_detector": "0xA5010..0xA5080 computes absolute change in vector length",
+    "steering": "0xA5520..0xA55BC normalizes filtered landscape Y",
+    "old_false_pull_g": 0.414214,
+    "new_max_tilt_false_pull_g": 2.2e-05
+  },
+  "manual_fishing_verified": false,
+  "prior_repeated_fishing_freeze_fix_verified": false,
+  "packaging": {
+    "zip_crcs_passed": true,
+    "sources_match_full_zip": true,
+    "private_saves_excluded": true,
+    "patch_install_sources_match": true
+  }
+}

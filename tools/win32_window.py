@@ -249,7 +249,7 @@ class Win32Window:
             "Mouse wheel: camera zoom using the game's right-hand slider.\n"
             "Ctrl + wheel over the slider's middle: align zoom if its position differs.\n"
             "Arrow keys / WASD: tilt the phone.\n"
-            "F4 / F6 (hold): tilt the screen left / right.\n"
+            "F4 / F6 (hold): gradually tilt left / right; release to level.\n"
             "F5: shake the phone (hold for continuous shaking).\n"
             "F7: quick upward jerk for fishing.\n"
             "F3: show or hide frame rate.\n"
