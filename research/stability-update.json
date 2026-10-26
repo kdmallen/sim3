@@ -1,0 +1,71 @@
+{
+  "version": "stability-4",
+  "user_reported_silent_crash_reproduced": false,
+  "confirmed_fixes": {
+    "background_focus": "WM_ACTIVATEAPP no longer emits phone suspend/resume; releases held input and capture",
+    "motion_keys": "F4/F6 hold left/right through SDK Y and original landscape X; old upward jerk moved to F7; F5 unchanged",
+    "graphics_buffer_lifetime": "Deleting bound GLES buffers now clears mirrored bindings/attributes and CPU copies; test failed before fix and passes after; valid client-index rendering verified",
+    "graphics_texture_lifetime": "Deleted texture names removed from cached bindings",
+    "host_callback_deadline": "Cooperative time-slice stop occurs after committing the API return, keeping the host message pump responsive even if a native timeout is overwritten by a slow callback"
+  },
+  "tests": {
+    "linux_runtime_tests_passed": 28,
+    "windows_under_wine_runtime_tests_passed": 28,
+    "native_focus_and_keys": "passed",
+    "original_game_arm_motion_adapter": "passed on Linux and Windows under Wine",
+    "final_native_window_text_motion": "passed",
+    "final_420_frame_startup": {
+      "status": "frame_limit_reached",
+      "error": null,
+      "frames": 420,
+      "diagnostics_updated": true
+    }
+  },
+  "in_game_background_test": {
+    "other_window_active": true,
+    "clock_before": "Tue 03:13",
+    "clock_during": "Tue 03:18",
+    "clock_after": "Tue 03:22",
+    "pause_overlay": false
+  },
+  "crash_diagnostics": {
+    "checkpoint_every_seconds": 10,
+    "persists_previous_log_and_snapshot": true,
+    "native_exception_log": "May include Windows exceptions handled by Unicorn; must correlate with final status and process exit"
+  },
+  "limitations": [
+    "Physical Windows test environment unavailable; user reports prior speed/sound update no longer crashes",
+    "Original silent app exit not reproduced; do not claim a confirmed root cause",
+    "Repeated fishing freeze remains unverified",
+    "Full four-sleep/job/social/job-change sequence not completed; user approved finishing after checks"
+  ],
+  "user_latest_report": {
+    "current_speed_sound_build_has_not_crashed": true,
+    "repeated_fishing_freeze_reported": true,
+    "user_accepts_completion_after_checks": true
+  },
+  "gameplay": {
+    "app_status": "user_closed",
+    "error": null,
+    "shutdown_completed": true,
+    "rendered_frames": 14920,
+    "allocation_failures": 0,
+    "exercised": [
+      "long sleep",
+      "nap",
+      "autonomous meals",
+      "home to town transition",
+      "business context menus"
+    ],
+    "four_complete_sleep_cycles_verified": false,
+    "job_change_sequence_verified": false
+  },
+  "packaging": {
+    "patch_applied_to_original_v1": true,
+    "patch_sources_match": true,
+    "full_zip_sources_match": true,
+    "zip_crc_validation_passed": true,
+    "private_saves_and_cache_excluded": true,
+    "original_exe_patched_launch_frames": 3
+  }
+}

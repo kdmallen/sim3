@@ -129,7 +129,7 @@ class Runtime:
     HEAP_BYTES = 128 * 1024 * 1024
 
     def __init__(self, image, config=None, apk=None, obb=None, resources=None, saves=None,
-                 frame_limit=1, frames_directory=None, taps=(), native_services=True):
+                 frame_limit=1, frames_directory=None, taps=(), native_services=True, diagnostics=None):
         self.image = image
         self.api_names = list(image.imports)
         self.api_indices = {name: index for index, name in enumerate(self.api_names)}
@@ -161,6 +161,8 @@ class Runtime:
         self.heap_next = self.HEAP
         self.allocations = {}
         self.free_blocks = []
+        self.allocation_failures = 0
+        self.last_failed_allocation = 0
         self.user_memory_managers = {}
         self.config = config or {}
         self.empty_string = self.allocate(1)
@@ -184,6 +186,9 @@ class Runtime:
         self.frames_directory = frames_directory or (Path(__file__).resolve().parents[1] /
                                                        "reports/frames" / uuid.uuid4().hex[:12])
         self.quit_requested = False
+        self.diagnostics = diagnostics
+        self.last_diagnostic_ns = 0
+        self.diagnostic_error_logged = False
         self.shutdown_completed = False
         self.window = None
         self.input = InputDevice(self, taps)
@@ -194,6 +199,7 @@ class Runtime:
         self.api_call_limit = 1_000_000
         self._api_args = None
         self._api_control_changed = False
+        self.slice_deadline_ns = 0
         if native_services:
             self.fast_services = FastServices(self)
             for offset, index in image.references:
@@ -284,6 +290,8 @@ class Runtime:
                 return address
         end = self.heap_next + aligned
         if end > self.HEAP + self.HEAP_BYTES:
+            self.allocation_failures += 1
+            self.last_failed_allocation = size
             return 0
         address = self.heap_next
         self.heap_next = end
@@ -333,6 +341,11 @@ class Runtime:
                     cpu.reg_write(UC_ARM_REG_PC, registers[4])
         finally:
             self._api_args = None
+        # A slow host callback can outlast Unicorn's timer. Apply the deadline
+        # after committing PC so the return cannot overwrite a pending stop.
+        if self.slice_deadline_ns and not self.api_call_count % 64:
+            if time.monotonic_ns() >= self.slice_deadline_ns:
+                cpu.emu_stop()
 
     def api_dispatch(self, cpu, address, size, _):
         index, within = divmod(address - self.API, 16)
@@ -427,6 +440,7 @@ class Runtime:
             cpu.reg_write(UC_ARM_REG_R0, 0)
             return
         if name == "s3eDeviceYield":
+            self.write_diagnostics()
             # The high bit is an SDK polling flag; the lower bits are delay ms.
             milliseconds = args[0] & 0x7FFFFFFF
             if milliseconds > 5000:
@@ -718,7 +732,7 @@ class Runtime:
         except FrameLimitReached as exc:
             self.status = "frame_limit_reached"
             error = None
-        except (UcError, RuntimeError, ValueError) as exc:
+        except (UcError, RuntimeError, ValueError, OSError) as exc:
             self.status = "execution_error"
             error = str(exc)
         return self.finish(error)
@@ -732,6 +746,7 @@ class Runtime:
         address = self.image.base
         error = None
         shutdown_deadline = None
+        self.write_diagnostics(force=True)
         try:
             while True:
                 self.window.pump()
@@ -741,6 +756,7 @@ class Runtime:
                     elif time.monotonic() >= shutdown_deadline:
                         self.status = "user_closed"
                         break
+                self.slice_deadline_ns = time.monotonic_ns() + 100_000_000
                 self.cpu.emu_start(address, self.API + 0xFFFC, timeout=100_000)
                 pc = self.cpu.reg_read(UC_ARM_REG_PC)
                 if pc == self.API + 0xFFFC:
@@ -748,6 +764,7 @@ class Runtime:
                     self.status = "user_closed" if self.quit_requested else "entry_returned"
                     break
                 address = pc | (1 if self.cpu.reg_read(UC_ARM_REG_CPSR) & 0x20 else 0)
+                self.write_diagnostics()
                 if self.window.minimized:
                     time.sleep(0.02)
         except UnsupportedImport as exc:
@@ -755,12 +772,40 @@ class Runtime:
             error = str(exc)
         except FrameLimitReached:
             self.status = "frame_limit_reached"
-        except (UcError, RuntimeError, ValueError) as exc:
+        except (UcError, RuntimeError, ValueError, OSError) as exc:
             self.status = "execution_error"
             error = str(exc)
         return self.finish(error)
 
+    def write_diagnostics(self, force=False, error=None):
+        if self.diagnostics is None:
+            return
+        now = time.monotonic_ns()
+        if not force and now - self.last_diagnostic_ns < 10_000_000_000:
+            return
+        self.last_diagnostic_ns = now
+        snapshot = {"status":self.status, "error":error,
+                    "timestamp_utc":time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                    "elapsed_seconds":round((now - self.started_ns) / 1e9, 2),
+                    "pc":self.cpu.reg_read(UC_ARM_REG_PC), "lr":self.cpu.reg_read(UC_ARM_REG_LR),
+                    "frames":self.graphics.frames if self.graphics else 0,
+                    "heap_span_bytes":self.heap_next - self.HEAP,
+                    "active_allocated_bytes":sum(self.allocations.values()),
+                    "allocation_failures":self.allocation_failures,
+                    "last_failed_allocation_bytes":self.last_failed_allocation,
+                    "last_calls":list(self.trace)[-20:], "audio":self.audio.report()}
+        try:
+            self.diagnostics.mkdir(parents=True, exist_ok=True)
+            temporary = self.diagnostics / "diagnostics.json.tmp"
+            temporary.write_text(json.dumps(snapshot, indent=2) + "\n", encoding="utf-8")
+            temporary.replace(self.diagnostics / "diagnostics.json")
+        except OSError as exc:
+            if not self.diagnostic_error_logged:
+                print("Unable to save runtime diagnostics: " + str(exc), flush=True)
+                self.diagnostic_error_logged = True
+
     def finish(self, error=None):
+        self.write_diagnostics(force=True, error=error)
         head_ids = {id(record) for record in self.trace_head}
         trace = self.trace_head + [record for record in self.trace if id(record) not in head_ids]
         report = {"status": self.status, "error": error,
@@ -774,7 +819,9 @@ class Runtime:
                 "trace_omitted_calls": self.api_call_count - len(trace),
                 "memory": {"heap_address_span": self.heap_next - self.HEAP,
                            "active_allocated_bytes": sum(self.allocations.values()),
-                           "active_allocations": len(self.allocations)},
+                           "active_allocations": len(self.allocations),
+                           "allocation_failures":self.allocation_failures,
+                           "last_failed_allocation_bytes":self.last_failed_allocation},
                 "playable": False, "windows_executable_built": False}
         report["audio"] = self.audio.report()
         self.audio.close()

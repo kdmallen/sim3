@@ -74,8 +74,10 @@ class InputDevice:
             self.held_keys.discard(key)
         if pressed and key == 116:  # F5: repeatable phone shake.
             self.shake_started = self.clock()
-        if pressed and key == 117:  # F6: quick upward jerk for fishing.
+        if pressed and key == 118:  # F7: quick upward jerk; F6 is right tilt.
             self.jerk_started = self.clock()
+        if key in (115, 117, 118):
+            return  # Host motion controls do not inject unrelated guest keys.
         self.keyboard_events.append((int(key), bool(pressed)))
 
     def wheel(self, delta, x=None, y=None):
@@ -228,5 +230,8 @@ class InputDevice:
         if axis == "X":
             return 1000 * (int(39 in self.keys or 68 in self.keys) - int(37 in self.keys or 65 in self.keys))
         if axis == "Y":
-            return 1000 * (int(40 in self.keys or 83 in self.keys) - int(38 in self.keys or 87 in self.keys))
+            # The original landscape adapter maps SDK Y to screen X.
+            # F4/F6 therefore tilt the screen left/right along SDK Y.
+            return 1000 * (int(40 in self.keys or 83 in self.keys or 117 in self.held_keys)
+                           - int(38 in self.keys or 87 in self.keys or 115 in self.held_keys))
         return 1000

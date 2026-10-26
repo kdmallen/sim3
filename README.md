@@ -13,7 +13,7 @@ No acceptance is supplied or bypassed by the runtime.
 
 ## Running the Windows build
 
-[Already have a build? Download the small speed and sound update](https://github.com/kdmallen/sim3/blob/main/downloads/Sims3-Speed-Sound-Update.zip).
+[Already have a build? Download the small stability and controls update](https://github.com/kdmallen/sim3/blob/main/downloads/Sims3-Stability-Update.zip).
 Close the game, extract the update into the folder containing your existing
 `Sims3.exe`, and replace the matching files. Start `Sims3.exe` again. Saves stay
 in AppData. Use **Download raw file** on the GitHub file page.
@@ -34,17 +34,19 @@ If needed, Ctrl+wheel over the slider's middle calibrates its position.
 | Mouse click / drag | Touch, camera pan, menu scrolling |
 | Mouse wheel | Camera zoom |
 | Arrow keys / WASD | Phone tilt |
+| F4 / F6 (hold) | Tilt the screen left / right |
 | F5 | Phone shake; hold for repeated shaking |
-| F6 | Quick upward jerk for fishing |
+| F7 | Quick upward jerk for fishing |
 | Escape | Back |
 | F1 | Controls help |
 | F3 | Show or hide FPS |
 
-F5 sends accelerometer input to the original game. The Gardening Tips money
-cheat did not activate during testing in this APK; it is not marked as verified.
-The update does not directly change money.
 Saves, cache, `player.log`, and `last-run.json` live in
 `%LOCALAPPDATA%\Sims3Mobile`. No administrator access is required.
+Switching to another application keeps gameplay running and releases held
+keys/buttons. The game's own menus still control their normal pause behavior.
+Diagnostic snapshots are saved every ten seconds and on normal/error exits;
+the previous session's snapshot and log are preserved for crash investigation.
 
 The intended target is Windows 11 x64. Validation here uses Wine 10 with ANGLE
 D3D11, plus Linux Mesa for diagnostics; execution on a physical Windows 11 PC
@@ -59,10 +61,21 @@ A game fault reports its real error and writes a log; unknown platform APIs stop
 - Rendered the EA splash, Sims splash, language selection, and 3D title/agreement scene using real GLES draws.
 - Executed pointer callbacks in the original ARM game; supplied isolated save-file services.
 - Built a native PE x64 GUI entry point with bundled Python 3.13.17, Unicorn 2.1.4, and ANGLE.
-- Passed 23 ABI/rendering regression tests on Linux and the packaged Windows Python under Wine.
+- Passed 28 ABI/rendering regression tests on Linux and the packaged Windows Python under Wine.
 - Passed native Win32 mouse, keyboard tilt, F5 shake, and orderly window-close smoke checks under Wine.
 - Played the original MP3 music and PCM effects through WinMM/MCI under Wine;
   native audio tests cover overlapping effects, looping, volume, pause/resume, and stop.
+- Verified F4/F6 against the original game's ARM landscape-axis conversion.
+- Matched GPU-buffer deletion to GLES state: detach bindings/attributes, clear
+  CPU shadows, and translate subsequent client indices to checked host memory.
+
+The stability update adds a cooperative deadline after platform callbacks, so
+heavy guest work returns control to the native event pump. Host driver errors
+are preserved in the final report. The reported pre-update silent app exit was
+not reproduced here; the user reports the speed/sound build no longer crashes.
+A separate freeze after repeated fishing remains unverified. Extended play here
+included sleep/nap actions, meals, and a home-to-town transition; the complete
+four-sleep/job/social/job-change sequence was not completed.
 
 Character creation and typed naming were checked in the real game, followed by
 entering the house, saving, restarting, and loading the saved Sim. Mouse-wheel

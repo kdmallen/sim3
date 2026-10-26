@@ -1,6 +1,7 @@
 """Windows player for the inspected Sims 3 Mobile 1.6.11 assets."""
 import argparse
 import ctypes
+import faulthandler
 import hashlib
 import json
 import os
@@ -67,6 +68,12 @@ def main():
     args = parser.parse_args()
     profile = args.profile or Path(os.environ["LOCALAPPDATA"]) / "Sims3Mobile"
     profile.mkdir(parents=True, exist_ok=True)
+    previous = profile / "diagnostics.json"
+    if previous.exists():
+        try:
+            shutil.copyfile(previous, profile / "diagnostics.previous.json")
+        except OSError:
+            pass
     apk, obb = root / "game/game.apk", root / "game/content.obb"
     config = {}
     with zipfile.ZipFile(apk) as archive:
@@ -76,7 +83,8 @@ def main():
                 config.update(read_icf(archive.read(name).decode("utf-8")))
     taps = [tuple(map(int, value.split(":"))) for value in args.tap]
     runtime = Runtime(Image(data), config, apk, obb, saves=profile / "saves",
-                      frame_limit=args.frames, taps=taps, frames_directory=profile / "frames")
+                      frame_limit=args.frames, taps=taps, frames_directory=profile / "frames",
+                      diagnostics=profile)
     window = Win32Window(runtime)
     try:
         runtime.audio.enable_windows()
@@ -108,8 +116,17 @@ def launch():
     """Keep a useful error log even when launched without a console."""
     directory = Path(os.environ.get("LOCALAPPDATA", str(Path.home()))) / "Sims3Mobile"
     directory.mkdir(parents=True, exist_ok=True)
-    with (directory / "player.log").open("w", encoding="utf-8", buffering=1) as log:
+    previous = directory / "player.log"
+    if previous.exists():
+        try:
+            shutil.copyfile(previous, directory / "player.previous.log")
+        except OSError:
+            pass
+    with (directory / "player.log").open("w", encoding="utf-8", buffering=1) as log, \
+            (directory / "native-crash.log").open("a", encoding="utf-8", buffering=1) as fault_log:
         sys.stdout = sys.stderr = log
+        fault_log.write("\nNative exception session: some Windows exceptions may be handled internally by the emulator; correlate with diagnostics.json and process exit.\n")
+        faulthandler.enable(file=fault_log, all_threads=True)
         try:
             return main()
         except Exception as exc:
@@ -118,6 +135,8 @@ def launch():
                        "\n\nDetails are saved in " + str(directory / "player.log"))
             ctypes.windll.user32.MessageBoxW(None, message, "The Sims 3 Mobile", 0x10)
             return 1
+        finally:
+            faulthandler.disable()
 
 
 if __name__ == "__main__":

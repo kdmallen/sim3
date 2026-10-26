@@ -1,22 +1,24 @@
 {
   "file": "downloads/Sims3-Windows-test.zip",
-  "bytes": 146517730,
-  "sha256": "47cba56eb400d411115b10fee15983ac854bc545b16ad831aaf664c93c5fb583",
+  "bytes": 146519441,
+  "sha256": "c0645388a467ce36e095785388abed19de523d9051665c14b4b50753590b95bc",
   "zip_crc_validation_passed": true,
-  "version": "speed-audio-3",
+  "version": "stability-4",
   "files": 2820,
   "patch": {
-    "file": "downloads/Sims3-Speed-Sound-Update.zip",
-    "bytes": 51924,
-    "sha256": "2ffdace6f85d98a5b624140246950de1691613ff848266ff10fd4940157f358b",
+    "file": "downloads/Sims3-Stability-Update.zip",
+    "bytes": 53608,
+    "sha256": "4c0a66ce5c24077606180aff7b96667a9a17ed23edff474ffaa4592a6b27459e",
     "zip_crc_validation_passed": true
   },
-  "legacy_patch_url_is_current_alias": true,
+  "legacy_patch_urls_are_current_aliases": true,
   "native_windows_version_tested": false,
   "wine_10_validated": true,
   "audio_implemented": true,
   "full_gameplay_validated": false,
   "basic_gameplay_validated": true,
   "normal_close_test_passed": true,
-  "runtime_tests_passed": 23
+  "runtime_tests_passed": 28,
+  "reported_silent_crash_reproduced": false,
+  "fishing_freeze_fix_verified": false
 }

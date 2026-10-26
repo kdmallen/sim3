@@ -83,15 +83,15 @@ def build(apk, obb, dependencies, destination, launcher):
     for name in ("python313._pth", "Sims3._pth"):
         (destination / name).write_text(isolation)
     (destination / "START HERE.txt").write_text(
-        "THE SIMS 3 MOBILE - SPEED AND SOUND UPDATE 3\n\n"
+        "THE SIMS 3 MOBILE - STABILITY AND CONTROLS UPDATE 4\n\n"
         "Extract the ENTIRE folder, then double-click Sims3.exe.\n"
         "Keep the other files beside it. No separate emulator or Python install is needed.\n"
         "Windows 11 x64 is the intended target.\n\n"
         "Click and drag with the mouse for touchscreen controls. Type using the keyboard.\n"
         "Mouse wheel zooms; Ctrl+wheel over the slider middle calibrates zoom.\n"
-        "Arrow keys / WASD tilt; F5 shakes the phone (hold to repeat); F6 makes an upward jerk.\n"
+        "F4/F6 (hold) tilt the screen left/right; F5 shakes; F7 makes an upward jerk.\n"
+        "Arrow keys / WASD also tilt. Switching windows keeps gameplay running.\n"
         "F1 shows controls; F3 toggles frame rate. Close the window to exit.\n"
-        "F5 sends sensor input; the Gardening Tips money cheat is not confirmed.\n"
         "The first launch prepares game files and may take a short while.\n"
         "Saves and logs: %LOCALAPPDATA%\\Sims3Mobile\\\n\n"
         "This is an experimental build. Naming, camera zoom, and basic save/load are verified.\n"
@@ -100,7 +100,7 @@ def build(apk, obb, dependencies, destination, launcher):
         "EA's agreement screen is left for you to review and accept in the game.\n"
         "Name prompts accept normal keyboard typing; Enter confirms, Escape cancels.\n")
     (destination / "version.json").write_text(json.dumps({
-        "version": "speed-audio-3", "game_version": "1.6.11", "tests_passed": 23,
+        "version": "stability-4", "game_version": "1.6.11", "tests_passed": 28,
         "audio_implemented": True,
         "shake_money_cheat_confirmed": False,
     }, indent=2) + "\n")

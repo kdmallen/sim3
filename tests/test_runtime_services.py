@@ -337,6 +337,68 @@ class RuntimeServices(unittest.TestCase):
         now[0] += 1
         self.assertEqual(device.acceleration("X"), 1000)
 
+    def test_function_key_tilts_use_landscape_axis_and_f7_keeps_jerk(self):
+        device = self.runtime.input
+        device.accelerometer_active = True
+        device.key(115, True)
+        self.assertEqual(device.acceleration("Y"), -1000)
+        self.assertEqual(device.acceleration("X"), 0)
+        device.key(115, False)
+        device.key(117, True)
+        self.assertEqual(device.acceleration("Y"), 1000)
+        self.assertIsNone(device.jerk_started)
+        device.key(117, False)
+        self.assertEqual(device.acceleration("Y"), 0)
+        self.assertFalse(device.keyboard_events)
+        device.key(118, True)
+        self.assertIsNotNone(device.jerk_started)
+        self.assertEqual(device.acceleration("Z"), 3200)
+
+    def test_runtime_checkpoint_preserves_failure_state_without_touching_saves(self):
+        import json
+        self.runtime.diagnostics = self.root / "diagnostics"
+        self.runtime.allocate(self.runtime.HEAP_BYTES)
+        self.runtime.status = "execution_error"
+        self.runtime.write_diagnostics(force=True, error="test fault")
+        record = json.loads((self.runtime.diagnostics / "diagnostics.json").read_text())
+        self.assertEqual(record["error"], "test fault")
+        self.assertEqual(record["allocation_failures"], 1)
+        self.assertEqual(record["last_failed_allocation_bytes"], self.runtime.HEAP_BYTES)
+        self.runtime.status = "running"
+        self.runtime.write_diagnostics(force=True)
+        record = json.loads((self.runtime.diagnostics / "diagnostics.json").read_text())
+        self.assertEqual(record["status"], "running")
+        self.assertIsNone(record["error"])
+        self.assertFalse((self.runtime.diagnostics / "diagnostics.json.tmp").exists())
+        self.assertEqual(list((self.root / "saves").iterdir()), [])
+
+    def test_host_driver_error_from_arm_callback_is_saved_in_final_report(self):
+        def failed_host_call(*args):
+            raise OSError("simulated host driver failure")
+        self.runtime.api_dispatch = failed_host_call
+        trap = self.runtime.import_trap("test_driver_failure")
+        self.runtime.cpu.mem_write(self.runtime.image.base,
+                                   struct.pack("<3I", 0xE59FC000, 0xE12FFF1C, trap))
+        self.runtime.window = SimpleNamespace(pump=lambda: None, minimized=False)
+        report = self.runtime.run_interactive()
+        self.assertEqual(report["status"], "execution_error")
+        self.assertEqual(report["error"], "simulated host driver failure")
+
+    def test_api_busy_loop_yields_to_host_with_a_committed_resume_address(self):
+        # A game loop that never calls DeviceYield must still return control
+        # to the native message pump. The emulation instruction limit is much
+        # larger than the cooperative deadline's work allowance.
+        trap = self.runtime.import_trap("s3eTimerGetMs")
+        code = struct.pack("<6I", 0xE59F300C, 0xE12FFF33, 0xEAFFFFFC,
+                           0xE1A00000, 0xE1A00000, trap)
+        self.runtime.cpu.mem_write(self.runtime.image.base, code)
+        self.runtime.slice_deadline_ns = 1  # Already due; no wall-clock timing assumption.
+        self.runtime.cpu.emu_start(self.runtime.image.base,
+                                   self.runtime.API + 0xFFFC, count=100000)
+        self.assertGreater(self.runtime.api_call_count, 0)
+        self.assertLess(self.runtime.api_call_count, 1000)
+        self.assertEqual(self.runtime.cpu.reg_read(UC_ARM_REG_PC), self.runtime.image.base + 8)
+
     def test_wheel_gesture_spreads_drag_over_frames_and_restores_mouse_position(self):
         device = self.runtime.input
         device.motion(410, 220)
@@ -415,8 +477,44 @@ class RuntimeServices(unittest.TestCase):
         pixel = self.data(bytes(4))
         self.call("glReadPixels", 400, 240, 1, 1, 0x1908, 0x1401, pixel)
         self.assertEqual(bytes(self.runtime.cpu.mem_read(pixel, 4)), b"\xff\x00\x00\xff")
+        # After deleting a bound index buffer, the next client-side index
+        # pointer must be translated to host RAM, rather than treated as a VBO offset.
+        output = self.data(bytes(4))
+        self.call("glGenBuffers", 1, output)
+        identifier = struct.unpack("<I", self.runtime.cpu.mem_read(output, 4))[0]
+        indices = self.data(struct.pack("<3H", 0, 1, 2))
+        self.call("glBindBuffer", 0x8893, identifier)
+        self.call("glBufferData", 0x8893, 6, indices, 0x88E4)
+        self.call("glDeleteBuffers", 1, output)
+        self.call("glClear", 0x4000)
+        self.call("glDrawElements", 4, 3, 0x1403, indices)
+        self.call("glReadPixels", 400, 240, 1, 1, 0x1908, 0x1401, pixel)
+        self.assertEqual(bytes(self.runtime.cpu.mem_read(pixel, 4)), b"\xff\x00\x00\xff")
         self.call("glDeleteTextures", 0, 0)  # Zero-sized transfers may use a null pointer.
         self.assertEqual(self.call("glGetError"), 0)
+
+    def test_deleting_bound_buffers_detaches_driver_and_shadow_bindings(self):
+        identifiers = self.data(bytes(8))
+        self.call("glGenBuffers", 2, identifiers)
+        vertex_buffer, index_buffer = struct.unpack("<2I", self.runtime.cpu.mem_read(identifiers, 8))
+        self.call("glBindBuffer", 0x8892, vertex_buffer)
+        self.call("glBufferData", 0x8892, 24, self.data(bytes(24)), 0x88E4)
+        self.call("glVertexAttribPointer", 0, 2, 0x1406, 0, 0, 0)
+        self.call("glBindBuffer", 0x8893, index_buffer)
+        self.call("glBufferData", 0x8893, 6, self.data(bytes(6)), 0x88E4)
+        self.call("glDeleteBuffers", 2, identifiers)
+        output = self.data(bytes(4))
+        for property_ in (0x8894, 0x8895):
+            self.call("glGetIntegerv", property_, output)
+            self.assertEqual(struct.unpack("<I", self.runtime.cpu.mem_read(output, 4))[0], 0)
+        self.call("glGetVertexAttribiv", 0, 0x889F, output)
+        self.assertEqual(struct.unpack("<I", self.runtime.cpu.mem_read(output, 4))[0], 0)
+        graphics = self.runtime.graphics
+        self.assertEqual(graphics.array_buffer, 0)
+        self.assertEqual(graphics.element_buffer, 0)
+        self.assertNotIn(vertex_buffer, graphics.buffer_data)
+        self.assertNotIn(index_buffer, graphics.buffer_data)
+        self.assertEqual(graphics.vertex_arrays[0]["buffer"], 0)
 
     def test_legacy_bitmap_filter_fix_is_narrow_and_updates_real_texture(self):
         output = self.data(bytes(4))

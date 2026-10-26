@@ -37,10 +37,29 @@ def main():
         tick[0] += 0.08
         assert first * runtime.input.acceleration("X") < 0
         send(window.handle, 0x0101, 116, 0)
+        tick[0] += 1.0
+        send(window.handle, 0x0100, 115, 0)
+        assert runtime.input.acceleration("Y") == -1000
+        send(window.handle, 0x0101, 115, 0)
+        send(window.handle, 0x0100, 117, 0)
+        assert runtime.input.acceleration("Y") == 1000
+        assert runtime.input.jerk_started is None
+        send(window.handle, 0x0101, 117, 0)
+        assert runtime.input.acceleration("Y") == 0
+        runtime.input.device_events.clear()
+        send(window.handle, 0x0100, 68, 0)
+        send(window.handle, 0x0201, 1, position)
+        send(window.handle, 0x001C, 0, 0)  # Switching to another application.
+        runtime.input.poll_keyboard()
+        assert not runtime.input.held_keys
+        assert not runtime.input.buttons
+        assert not runtime.input.device_events  # No phone-suspend event.
+        send(window.handle, 0x001C, 1, 0)
+        assert not runtime.input.device_events
         send(window.handle, 0x0010, 0, 0)
         assert runtime.quit_requested
         assert not window.closed  # EGL cleanup must precede HWND destruction.
-        print("PASS: native mouse, keyboard tilt, F5 shake, and orderly close")
+        print("PASS: native mouse, keyboard tilt, F5 input, focus change without suspend, and orderly close")
     finally:
         window.close()
         assert window.closed

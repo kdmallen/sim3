@@ -497,6 +497,24 @@ class Graphics:
         if name in ("glDeleteTextures", "glDeleteBuffers", "glDeleteFramebuffers", "glDeleteRenderbuffers"):
             buffer = self.input_buffer(raw[1], raw[0] * 4)
             function(raw[0], buffer)
+            deleted = {value[0] for value in struct.iter_unpack("<I", buffer.raw)}
+            if name == "glDeleteBuffers":
+                # GLES detaches a deleted buffer from current bindings and
+                # vertex attributes. Stale index bindings would make a guest
+                # offset look like a host pointer to the next glDrawElements.
+                if self.array_buffer in deleted:
+                    self.array_buffer = 0
+                if self.element_buffer in deleted:
+                    self.element_buffer = 0
+                for vertex in self.vertex_arrays.values():
+                    if vertex["buffer"] in deleted:
+                        vertex["buffer"] = 0
+                for identifier in deleted:
+                    self.buffer_data.pop(identifier, None)
+            elif name == "glDeleteTextures":
+                for binding, identifier in self.texture_bindings.items():
+                    if identifier in deleted:
+                        self.texture_bindings[binding] = 0
             return None
         if name in ("glGetUniformLocation", "glGetAttribLocation", "glBindAttribLocation"):
             text = self.runtime.string(raw[-1])

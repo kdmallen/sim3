@@ -104,13 +104,15 @@ class Win32Window:
             if message == 0x001C:
                 active = bool(wparam)
                 if self.active != active:
-                    self.runtime.input.device_events.append((1 if active else 0, None))
+                    # A desktop focus change does not suspend the application.
+                    # The original phone suspend/resume callbacks pause gameplay.
                     self.active = active
                     if not active:
                         for key in tuple(self.runtime.input.held_keys):
                             self.runtime.input.key(key, False)
                         for button in tuple(self.runtime.input.buttons):
                             self.runtime.input.button(button, False)
+                        self.bind(self.user, "ReleaseCapture", C.c_int32)()
             if message == 0x0014:
                 return 1  # Avoid erasing an EGL-rendered frame.
             if message == 0x000F and self.status:
@@ -247,8 +249,9 @@ class Win32Window:
             "Mouse wheel: camera zoom using the game's right-hand slider.\n"
             "Ctrl + wheel over the slider's middle: align zoom if its position differs.\n"
             "Arrow keys / WASD: tilt the phone.\n"
+            "F4 / F6 (hold): tilt the screen left / right.\n"
             "F5: shake the phone (hold for continuous shaking).\n"
-            "F6: quick upward jerk for fishing.\n"
+            "F7: quick upward jerk for fishing.\n"
             "F3: show or hide frame rate.\n"
             "Escape: back.\n\n"
             "Name prompts: type normally; Enter confirms, Escape cancels.\n"
