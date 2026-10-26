@@ -1,14 +1,14 @@
 {
   "file": "downloads/Sims3-Windows-test.zip",
-  "bytes": 146519168,
-  "sha256": "cb48555662e2d484d141c4978abd3f5d7acbc28ab04376c812f9f8cc599d53ca",
+  "bytes": 146519542,
+  "sha256": "09809653c9844cb29f0c2d4ad15e17893cf2fcc5ec5fc69ef7a354e671529f4b",
   "zip_crc_validation_passed": true,
-  "version": "smooth-tilt-5",
+  "version": "render-6",
   "files": 2820,
   "patch": {
-    "file": "downloads/Sims3-Smooth-Tilt-Update.zip",
-    "bytes": 53324,
-    "sha256": "930b290437e4840a5fa7e6332459b737af534a27b262f3e31be12c2e85ddfd79",
+    "file": "downloads/Sims3-Render-Update.zip",
+    "bytes": 53693,
+    "sha256": "f8ebfa6f3e9ca6e6847ab05007de6def00040a918bbe1dd9f6e4f514556513ca",
     "zip_crc_validation_passed": true
   },
   "legacy_patch_urls_are_current_aliases": true,
@@ -16,7 +16,7 @@
   "wine_10_validated": true,
   "audio_implemented": true,
   "full_gameplay_validated": false,
-  "runtime_tests_passed": 29,
+  "runtime_tests_passed": 31,
   "manual_fishing_validated": false,
   "fishing_freeze_fix_verified": false
 }

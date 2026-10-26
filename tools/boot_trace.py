@@ -844,6 +844,8 @@ class Runtime:
                                       captures=self.graphics.captures,
                                       pending_gl_errors=self.graphics.error_queue,
                                       frame_timing=self.graphics.frame_stats(),
+                                      index_cache_hits=self.graphics.index_cache_hits,
+                                      index_cache_bytes=self.graphics.index_cache_bytes,
                                       invalid_texture_call=self.graphics.invalid_texture_call,
                                       legacy_texture_filter_calls=self.graphics.texture_parameter_compatibility_calls)
             self.graphics.close()

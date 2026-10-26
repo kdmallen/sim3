@@ -29,5 +29,6 @@
     "sources_match_full_zip": true,
     "private_saves_excluded": true,
     "patch_install_sources_match": true
-  }
+  },
+  "superseded_by": "rendering-update.json"
 }

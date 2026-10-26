@@ -83,7 +83,7 @@ def build(apk, obb, dependencies, destination, launcher):
     for name in ("python313._pth", "Sims3._pth"):
         (destination / name).write_text(isolation)
     (destination / "START HERE.txt").write_text(
-        "THE SIMS 3 MOBILE - SMOOTH TILT UPDATE 5\n\n"
+        "THE SIMS 3 MOBILE - RENDERING UPDATE 6\n\n"
         "Extract the ENTIRE folder, then double-click Sims3.exe.\n"
         "Keep the other files beside it. No separate emulator or Python install is needed.\n"
         "Windows 11 x64 is the intended target.\n\n"
@@ -100,7 +100,7 @@ def build(apk, obb, dependencies, destination, launcher):
         "EA's agreement screen is left for you to review and accept in the game.\n"
         "Name prompts accept normal keyboard typing; Enter confirms, Escape cancels.\n")
     (destination / "version.json").write_text(json.dumps({
-        "version": "smooth-tilt-5", "game_version": "1.6.11", "tests_passed": 29,
+        "version": "render-6", "game_version": "1.6.11", "tests_passed": 31,
         "audio_implemented": True,
         "shake_money_cheat_confirmed": False,
     }, indent=2) + "\n")

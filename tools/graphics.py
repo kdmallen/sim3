@@ -11,7 +11,7 @@ import re
 import struct
 import time
 import zlib
-from collections import deque
+from collections import deque, OrderedDict
 
 
 class GraphicsUnsupported(RuntimeError):
@@ -69,6 +69,9 @@ class Graphics:
         self.vertex_arrays = {}
         self.enabled_arrays = set()
         self.buffer_data = {}
+        self.index_ranges = OrderedDict()
+        self.index_cache_bytes = 0
+        self.index_cache_hits = 0
         self.draw_buffers = []
         self.draws = 0
         self.error_queue = []
@@ -413,6 +416,8 @@ class Graphics:
                 pointer = None
             else:
                 count, type_, address = raw[1:4]
+                if count > 10_000_000:
+                    raise ValueError("Draw exceeds index budget")
                 element_bytes = {0x1401: 1, 0x1403: 2, 0x1405: 4}.get(type_)
                 if element_bytes is None:
                     raise GraphicsUnsupported("Unsupported index element type")
@@ -420,15 +425,14 @@ class Graphics:
                     content = self.buffer_data.get(self.element_buffer)
                     if content is None or address + count * element_bytes > len(content):
                         raise ValueError("Unknown/out-of-bounds guest index buffer")
-                    indices = content[address:address + count * element_bytes]
+                    indices = memoryview(content)[address:address + count * element_bytes]
                     pointer = C.c_void_p(address)
                 else:
-                    indices = bytes(self.runtime.cpu.mem_read(address, count * element_bytes)) if count else b""
-                    buffer = C.create_string_buffer(indices)
+                    buffer = self.input_buffer(address, count * element_bytes)
+                    indices = memoryview(buffer).cast("B")
                     self.draw_buffers.append(buffer)
                     pointer = C.cast(buffer, C.c_void_p)
-                maximum = max((value[0] for value in struct.iter_unpack(
-                    {1: "<B", 2: "<H", 4: "<I"}[element_bytes], indices)), default=-1)
+                maximum = self.maximum_index(indices, element_bytes)
             if count > 10_000_000 or maximum > 10_000_000:
                 raise ValueError("Draw exceeds vertex/index budget")
             self.prepare_arrays(maximum)
@@ -676,6 +680,24 @@ class Graphics:
             pointer_function(index, vertex["size"], vertex["type"], vertex["normalized"],
                              vertex["stride"], C.cast(buffer, C.c_void_p))
         bind(0x8892, self.array_buffer)
+
+    def maximum_index(self, indices, element_bytes):
+        # Mesh topology is often reused across objects and animation frames.
+        # Exact byte equality makes reuse safe even when guest RAM is rewritten.
+        data = bytes(indices)
+        key = (element_bytes, data)
+        if key in self.index_ranges:
+            self.index_cache_hits += 1
+            self.index_ranges.move_to_end(key)
+            return self.index_ranges[key]
+        maximum = max(memoryview(data).cast({1:"B", 2:"H", 4:"I"}[element_bytes]), default=-1)
+        if len(data) <= 2 * 1024 * 1024:
+            while self.index_ranges and (self.index_cache_bytes + len(data) > 2 * 1024 * 1024 or len(self.index_ranges) >= 256):
+                previous, _ = self.index_ranges.popitem(last=False)
+                self.index_cache_bytes -= len(previous[1])
+            self.index_ranges[key] = maximum
+            self.index_cache_bytes += len(data)
+        return maximum
 
     def present(self):
         # eglSwapBuffers submits the completed frame. A glFinish here forces

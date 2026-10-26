@@ -183,6 +183,26 @@ class RuntimeServices(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.runtime.string(end)
 
+    def test_index_range_cache_tracks_rewritten_data_and_index_width(self):
+        graphics = self.runtime.get_graphics()
+        data = bytearray(struct.pack("<3H", 0, 1, 2))
+        self.assertEqual(graphics.maximum_index(data, 2), 2)
+        self.assertEqual(graphics.maximum_index(memoryview(data), 2), 2)
+        self.assertEqual(graphics.index_cache_hits, 1)
+        struct.pack_into("<H", data, 4, 4095)
+        self.assertEqual(graphics.maximum_index(data, 2), 4095)
+        self.assertEqual(graphics.maximum_index(data, 1), 255)
+
+    def test_index_range_cache_is_bounded_across_many_meshes(self):
+        graphics = self.runtime.get_graphics()
+        for index in range(300):
+            self.assertEqual(graphics.maximum_index(struct.pack("<I", index), 4), index)
+        self.assertLessEqual(len(graphics.index_ranges), 256)
+        self.assertLessEqual(graphics.index_cache_bytes, 2 * 1024 * 1024)
+        large = bytes(2 * 1024 * 1024 + 2)
+        self.assertEqual(graphics.maximum_index(large, 2), 0)
+        self.assertLessEqual(graphics.index_cache_bytes, 2 * 1024 * 1024)
+
     def test_pcm_audio_abi_preserves_rate_repeat_offset_and_source_snapshot(self):
         from audio import Audio
         class Device:

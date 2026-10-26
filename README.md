@@ -13,7 +13,7 @@ No acceptance is supplied or bypassed by the runtime.
 
 ## Running the Windows build
 
-[Already have a build? Download the small smooth-tilt update](https://github.com/kdmallen/sim3/blob/main/downloads/Sims3-Smooth-Tilt-Update.zip).
+[Already have a build? Download the small rendering update](https://github.com/kdmallen/sim3/blob/main/downloads/Sims3-Render-Update.zip).
 Close the game, extract the update into the folder containing your existing
 `Sims3.exe`, and replace the matching files. Start `Sims3.exe` again. Saves stay
 in AppData. Use **Download raw file** on the GitHub file page.
@@ -61,7 +61,7 @@ A game fault reports its real error and writes a log; unknown platform APIs stop
 - Rendered the EA splash, Sims splash, language selection, and 3D title/agreement scene using real GLES draws.
 - Executed pointer callbacks in the original ARM game; supplied isolated save-file services.
 - Built a native PE x64 GUI entry point with bundled Python 3.13.17, Unicorn 2.1.4, and ANGLE.
-- Passed 29 ABI/rendering regression tests on Linux and the packaged Windows Python under Wine.
+- Passed 31 ABI/rendering regression tests on Linux and the packaged Windows Python under Wine.
 - Passed native Win32 mouse, keyboard tilt, F5 shake, and orderly window-close smoke checks under Wine.
 - Played the original MP3 music and PCM effects through WinMM/MCI under Wine;
   native audio tests cover overlapping effects, looping, volume, pause/resume, and stop.
@@ -163,3 +163,9 @@ private save files and caches remain outside source control.
 The player can run bounded Windows diagnostics with `--frames N`,
 `--profile PATH`, and `--tap FRAME:X:Y`. Run `tests/windows_window_smoke.py` with
 the bundled `python.exe` for the native message test.
+
+The rendering update avoids a second client-index copy and caches exact index
+contents with their validated maximum. Reusing mesh topology avoids repeated
+Python index scans; changed indices are revalidated. The cache is limited to
+2 MiB and 256 entries. This reduces CPU work without changing scene detail.
+The reported 20+ to 7.6 FPS drop in another Sim's house is not yet verified fixed.

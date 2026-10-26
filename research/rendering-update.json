@@ -1,0 +1,32 @@
+{
+  "version": "render-6",
+  "tests": {
+    "linux_passed": 31,
+    "windows_under_wine_passed": 31
+  },
+  "user_reported_fps": {
+    "own_house": "20+",
+    "other_house": 7.6
+  },
+  "implementation": [
+    "Zero-copy checked client index views",
+    "Exact-content validated index maximum cache, 2 MiB and 256 entries",
+    "Native memoryview maximum scan on cache misses"
+  ],
+  "benchmark": {
+    "scope": "Repeated 8192-index CPU bounds processing only; not gameplay FPS",
+    "iterations": 1000,
+    "old_seconds": 0.462546,
+    "new_seconds": 0.007651,
+    "cache_hits": 999
+  },
+  "specific_other_house_fps_fix_verified": false,
+  "actual_game_check": {
+    "status": "frame_limit_reached",
+    "error": null,
+    "frames": 240,
+    "draws": 1831,
+    "index_cache_hits": 294,
+    "index_cache_bytes": 348
+  }
+}
