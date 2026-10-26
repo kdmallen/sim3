@@ -83,7 +83,7 @@ def build(apk, obb, dependencies, destination, launcher):
     for name in ("python313._pth", "Sims3._pth"):
         (destination / name).write_text(isolation)
     (destination / "START HERE.txt").write_text(
-        "THE SIMS 3 MOBILE - CONTROLS UPDATE 2\n\n"
+        "THE SIMS 3 MOBILE - SPEED AND SOUND UPDATE 3\n\n"
         "Extract the ENTIRE folder, then double-click Sims3.exe.\n"
         "Keep the other files beside it. No separate emulator or Python install is needed.\n"
         "Windows 11 x64 is the intended target.\n\n"
@@ -95,11 +95,13 @@ def build(apk, obb, dependencies, destination, launcher):
         "The first launch prepares game files and may take a short while.\n"
         "Saves and logs: %LOCALAPPDATA%\\Sims3Mobile\\\n\n"
         "This is an experimental build. Naming, camera zoom, and basic save/load are verified.\n"
-        "Sound is not implemented; full gameplay and physical Windows performance need testing.\n"
+        "Original MP3 music and PCM sound effects use Windows' built-in audio services.\n"
+        "Full gameplay and physical Windows performance need testing.\n"
         "EA's agreement screen is left for you to review and accept in the game.\n"
         "Name prompts accept normal keyboard typing; Enter confirms, Escape cancels.\n")
     (destination / "version.json").write_text(json.dumps({
-        "version": "controls-2", "game_version": "1.6.11", "tests_passed": 20,
+        "version": "speed-audio-3", "game_version": "1.6.11", "tests_passed": 23,
+        "audio_implemented": True,
         "shake_money_cheat_confirmed": False,
     }, indent=2) + "\n")
     (destination / "dependency-sources.json").write_text(json.dumps(records + [source_record], indent=2))

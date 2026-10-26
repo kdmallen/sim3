@@ -102,9 +102,9 @@
   "playable": true,
   "windows_executable_built": true,
   "windows_execution_tested": true,
-  "current_boot_stop": "Normal user close after typed Sim creation, house entry, save/reload, and bidirectional wheel zoom; no guest fault",
+  "current_boot_stop": "Normal user close after loading Alex, entering the house, playing original MP3/PCM audio, and mouse-wheel zoom; no guest fault",
   "windows_validation_platform": "Wine 10; real Windows 11 not tested",
   "full_gameplay_tested": false,
-  "audio_playback_implemented": false,
+  "audio_playback_implemented": true,
   "basic_gameplay_tested": true
 }

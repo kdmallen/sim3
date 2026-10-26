@@ -6,13 +6,14 @@ of the required Marmalade services. ANGLE presents graphics in a native Win32
 window. No Android virtual machine, separate emulator, or Python installation is
 needed by the person running the packaged application.
 
-**Experimental: audio is not implemented and complete gameplay is unverified.**
+**Experimental: complete gameplay and physical Windows performance are unverified.**
+Music and sound effects use Windows' built-in audio services.
 The original first-run EA agreement remains for the user to review and accept.
 No acceptance is supplied or bypassed by the runtime.
 
 ## Running the Windows build
 
-[Already have the original build? Download the small controls update](https://github.com/kdmallen/sim3/blob/main/downloads/Sims3-Controls-Update.zip).
+[Already have a build? Download the small speed and sound update](https://github.com/kdmallen/sim3/blob/main/downloads/Sims3-Speed-Sound-Update.zip).
 Close the game, extract the update into the folder containing your existing
 `Sims3.exe`, and replace the matching files. Start `Sims3.exe` again. Saves stay
 in AppData. Use **Download raw file** on the GitHub file page.
@@ -58,13 +59,15 @@ A game fault reports its real error and writes a log; unknown platform APIs stop
 - Rendered the EA splash, Sims splash, language selection, and 3D title/agreement scene using real GLES draws.
 - Executed pointer callbacks in the original ARM game; supplied isolated save-file services.
 - Built a native PE x64 GUI entry point with bundled Python 3.13.17, Unicorn 2.1.4, and ANGLE.
-- Passed 20 ABI/rendering regression tests on Linux and the packaged Windows Python under Wine.
+- Passed 23 ABI/rendering regression tests on Linux and the packaged Windows Python under Wine.
 - Passed native Win32 mouse, keyboard tilt, F5 shake, and orderly window-close smoke checks under Wine.
+- Played the original MP3 music and PCM effects through WinMM/MCI under Wine;
+  native audio tests cover overlapping effects, looping, volume, pause/resume, and stop.
 
 Character creation and typed naming were checked in the real game, followed by
 entering the house, saving, restarting, and loading the saved Sim. Mouse-wheel
 zoom was checked in both directions against the game's real camera slider.
-Full gameplay, audio, and sustained performance on physical Windows remain
+Full gameplay and sustained performance on physical Windows remain
 unverified. Diagnostic runs retain legacy GL errors; the guest's own error
 queries still return actual driver errors during normal play.
 
@@ -72,6 +75,14 @@ The controls update reduces repeated guest/host calls and removes a forced GPU
 wait after every frame. A 420-frame startup comparison under Wine took 73 seconds
 with the original build and 41 seconds with the update. This is a development
 startup measurement, not a promised Windows frame rate. F3 shows recent FPS.
+
+The speed and sound update also reuses register-transfer buffers, shares checked
+guest RAM with synchronous graphics calls, caches graphics call signatures, and
+reads guest strings in chunks. Music control runs on a separate host thread;
+the guest CPU remains on the game thread. A subsequent 420-frame comparison
+under Wine took 45.3 seconds for controls-2 and 41.3 seconds for speed-audio-3
+with sound enabled. The recent p95 frame time fell from 112.1 to 81.1 ms in
+that startup sample; this does not establish steady gameplay FPS on Windows.
 
 ## Development environment
 

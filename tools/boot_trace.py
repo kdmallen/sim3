@@ -29,6 +29,8 @@ from thread_bridge import ThreadBridge, ThreadUnsupported
 from input_device import InputDevice
 from text_input import TextInput, TextInputUnsupported
 from fast_services import FastServices
+from guest_memory import GuestMemory, ArmRegisters
+from audio import Audio
 
 
 class UnsupportedImport(RuntimeError):
@@ -132,12 +134,15 @@ class Runtime:
         self.api_names = list(image.imports)
         self.api_indices = {name: index for index, name in enumerate(self.api_names)}
         self.cpu = Uc(UC_ARCH_ARM, UC_MODE_ARM)
+        self.memory = GuestMemory(self.cpu)
+        self.api_registers = ArmRegisters(self.cpu, (UC_ARM_REG_R0, UC_ARM_REG_R1,
+                                                    UC_ARM_REG_R2, UC_ARM_REG_R3, UC_ARM_REG_LR))
         rounded = (image.memory_bytes + 0xFFF) & ~0xFFF
-        self.cpu.mem_map(image.base, rounded)
+        self.memory.map(image.base, rounded)
         self.cpu.mem_write(image.base, image.code)
-        self.cpu.mem_map(self.STACK, self.STACK_BYTES)
-        self.cpu.mem_map(self.HEAP, self.HEAP_BYTES)
-        self.cpu.mem_map(self.API, 0x10000)
+        self.memory.map(self.STACK, self.STACK_BYTES)
+        self.memory.map(self.HEAP, self.HEAP_BYTES)
+        self.memory.map(self.API, 0x10000)
         self.cpu.mem_write(self.API, b"\x1e\xff\x2f\xe1" * (0x10000 // 4))
         for offset, index in image.references:
             self.cpu.mem_write(image.base + offset,
@@ -183,6 +188,7 @@ class Runtime:
         self.window = None
         self.input = InputDevice(self, taps)
         self.text_input = TextInput(self)
+        self.audio = Audio(self)
         self.callback_stack = []
         self.callback_returns = 0
         self.api_call_limit = 1_000_000
@@ -308,20 +314,13 @@ class Runtime:
     def string(self, address):
         if address == 0:
             return None
-        output = bytearray()
-        for offset in range(4096):
-            byte = self.cpu.mem_read(address + offset, 1)[0]
-            if byte == 0:
-                return output.decode("utf-8", errors="replace")
-            output.append(byte)
-        raise ValueError("Unterminated guest string")
+        return self.memory.string(address)
 
     def api_call(self, cpu, address, size, _):
         # Complete the guest return in the hook itself. A CPU time slice can
         # end after a slow host service and before the trampoline's BX LR;
         # leaving PC there would execute the service twice on resume.
-        registers = cpu.reg_read_batch((UC_ARM_REG_R0, UC_ARM_REG_R1, UC_ARM_REG_R2,
-                                        UC_ARM_REG_R3, UC_ARM_REG_LR))
+        registers = self.api_registers.read()
         self._api_args = registers[:4]
         self._api_return = registers[4]
         self._api_control_changed = False
@@ -357,6 +356,9 @@ class Runtime:
         self.api_call_count += 1
         if self.api_call_limit is not None and self.api_call_count > self.api_call_limit:
             raise RuntimeError("API call budget exceeded")
+        if name.startswith(("s3eAudio", "s3eSound")):
+            cpu.reg_write(UC_ARM_REG_R0, self.audio.dispatch(name) & 0xFFFFFFFF)
+            return
         if name.startswith("thread_slot_"):
             try:
                 result = self.threads.dispatch(name)
@@ -446,28 +448,6 @@ class Runtime:
             return
         if name == "s3eDeviceAbort":
             raise RuntimeError("Guest requested process abort; see preceding debug messages")
-        if name == "s3eAudioGetInt" and args[0] <= 7:
-            # Property 6 is audio availability. The original SDK returns zero
-            # for all these queries when its audio capability is absent.
-            record["result"] = "audio_device_unavailable"
-            cpu.reg_write(UC_ARM_REG_R0, 0)
-            return
-        if name == "s3eSoundGetInt" and args[0] <= 7:
-            value = 0 if args[0] in (3, 5) else 0xFFFFFFFF
-            record["result"] = "audio_device_unavailable"
-            cpu.reg_write(UC_ARM_REG_R0, value)
-            return
-        if name == "s3eAudioIsCodecSupported":
-            cpu.reg_write(UC_ARM_REG_R0, 0)
-            return
-        if name in ("s3eAudioSetInt", "s3eAudioPlay", "s3eAudioStop", "s3eAudioPause", "s3eAudioResume",
-                    "s3eSoundChannelSetInt", "s3eSoundChannelPlay", "s3eSoundChannelStop"):
-            record["result"] = "error_audio_device_unavailable"
-            cpu.reg_write(UC_ARM_REG_R0, 1)
-            return
-        if name == "s3eSoundGetFreeChannel":
-            cpu.reg_write(UC_ARM_REG_R0, 0xFFFFFFFF)
-            return
         if name in ("s3eAccelerometerStart", "s3eAccelerometerStop"):
             available = self.input.accelerometer_available
             self.input.accelerometer_active = available and name.endswith("Start")
@@ -796,8 +776,8 @@ class Runtime:
                            "active_allocated_bytes": sum(self.allocations.values()),
                            "active_allocations": len(self.allocations)},
                 "playable": False, "windows_executable_built": False}
-        report["audio"] = {"available": False, "playback_tested": False,
-                           "reason": "Audio playback backend is not implemented"}
+        report["audio"] = self.audio.report()
+        self.audio.close()
         report["native_service_counts"] = self.fast_services.counts() if hasattr(self, "fast_services") else {}
         report["input"] = {"events_dispatched": self.input.events_dispatched,
                            "callbacks_completed": self.callback_returns,

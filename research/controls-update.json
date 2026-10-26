@@ -81,5 +81,6 @@
       "game_data_crc_verified": true
     },
     "private_saves_or_cache_in_archives": false
-  }
+  },
+  "superseded_by": "speed-sound-update.json"
 }

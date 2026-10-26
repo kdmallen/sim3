@@ -79,6 +79,7 @@ def main():
                       frame_limit=args.frames, taps=taps, frames_directory=profile / "frames")
     window = Win32Window(runtime)
     try:
+        runtime.audio.enable_windows()
         window.set_status("Checking game files…")
         if digest(apk) != APK_HASH or digest(obb) != OBB_HASH:
             raise ValueError("Game files are missing or damaged. Extract the complete download again.")
@@ -96,6 +97,7 @@ def main():
     except InterruptedError:
         return 0
     finally:
+        runtime.audio.close()
         if runtime.graphics:
             runtime.graphics.close()
         runtime.filesystem.close()

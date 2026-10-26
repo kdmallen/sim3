@@ -30,6 +30,7 @@ class RuntimeServices(unittest.TestCase):
         self.runtime = Runtime(image, apk=apk, obb=obb, saves=self.root / "saves")
 
     def tearDown(self):
+        self.runtime.audio.close()
         if self.runtime.graphics:
             self.runtime.graphics.close()
         self.runtime.filesystem.close()
@@ -165,6 +166,72 @@ class RuntimeServices(unittest.TestCase):
         self.assertEqual(self.call("s3eAudioPlay", self.data("missing.mp3"), 1), 1)
         self.assertEqual(self.call("s3eSoundGetFreeChannel"), 0xFFFFFFFF)
         self.assertEqual(self.call("s3eSurfaceGetInt", 11), 0)
+
+    def test_checked_graphics_view_shares_ram_and_rejects_cross_boundary_access(self):
+        pointer = self.data(b"vertices")
+        view = (ctypes.c_char * 8).from_address(self.runtime.memory.pointer(pointer, 8).value)
+        self.runtime.cpu.mem_write(pointer, b"Vertexes")
+        self.assertEqual(view.raw, b"Vertexes")
+        view[0] = b"v"
+        self.assertEqual(bytes(self.runtime.cpu.mem_read(pointer, 8)), b"vertexes")
+        with self.assertRaises(ValueError):
+            self.runtime.memory.pointer(self.runtime.HEAP + self.runtime.HEAP_BYTES - 1, 2)
+        with self.assertRaises(ValueError):
+            self.runtime.memory.pointer(0, 128)
+        end = self.runtime.HEAP + self.runtime.HEAP_BYTES - 4
+        self.runtime.cpu.mem_write(end, b"xxxx")
+        with self.assertRaises(ValueError):
+            self.runtime.string(end)
+
+    def test_pcm_audio_abi_preserves_rate_repeat_offset_and_source_snapshot(self):
+        from audio import Audio
+        class Device:
+            available = True
+            def play_effect(self, *args):
+                self.played = args
+                return True
+            def busy(self, index):
+                return index == 0
+            def set_effect_volume(self, *args):
+                pass
+            def close(self):
+                pass
+        device = Device()
+        self.runtime.audio = Audio(self.runtime, device)
+        source = self.data(struct.pack("<4h", -32768, -100, 200, 32767))
+        self.assertEqual(self.call("s3eSoundGetFreeChannel"), 1)
+        self.assertEqual(self.call("s3eSoundGetInt", 4), 0xFFFF0001)
+        self.assertEqual(self.call("s3eSoundChannelSetInt", 1, 1, 11025), 0)
+        self.assertEqual(self.call("s3eSoundChannelSetInt", 1, 3, 128), 0)
+        self.assertEqual(self.call("s3eSoundChannelPlay", 1, source, 4, 3, 1), 0)
+        self.runtime.cpu.mem_write(source, bytes(8))
+        self.assertEqual(device.played, (1, struct.pack("<3h", -100, 200, 32767), 11025, 3, 128))
+        self.assertEqual(self.call("s3eSoundChannelSetInt", 1, 3, 0xFFFFFFFF), 0)
+        self.assertEqual(self.runtime.audio.volumes[1], 0)
+        self.assertEqual(self.call("s3eSoundChannelPlay", 16, source, 4, 1, 0), 1)
+        self.assertEqual(self.call("s3eSoundChannelPlay", 1, source, 4, 1, 4), 1)
+
+    def test_mp3_audio_resolves_only_game_files_and_retains_user_volume(self):
+        from audio import Audio
+        class Device:
+            available = True
+            def play_music(self, path, repeats, volume):
+                self.played = Path(path).read_bytes(), repeats, volume
+                return True
+            def set_music_volume(self, volume):
+                pass
+            def close(self):
+                pass
+        device = Device()
+        self.runtime.audio = Audio(self.runtime, device)
+        self.assertEqual(self.call("s3eAudioSetInt", 0, 96), 0)
+        self.assertEqual(self.call("s3eAudioIsCodecSupported", 2), 1)
+        self.assertEqual(self.call("s3eAudioIsCodecSupported", 1), 0)
+        self.assertEqual(self.call("s3eAudioPlay", self.data("config.txt"), 0), 0)
+        self.assertEqual(device.played, (b"test configuration", 0, 96))
+        self.assertEqual(self.call("s3eAudioPlay", self.data("../outside.mp3"), 1), 1)
+        self.assertEqual(self.call("s3eAudioSetInt", 0, 0xFFFFFFFF), 0)
+        self.assertEqual(self.call("s3eAudioGetInt", 0), 0)
 
     def test_guest_heap_reuses_coalesced_blocks_and_preserves_realloc_data(self):
         first = self.call("s3eMallocBase", 32)
@@ -348,6 +415,7 @@ class RuntimeServices(unittest.TestCase):
         pixel = self.data(bytes(4))
         self.call("glReadPixels", 400, 240, 1, 1, 0x1908, 0x1401, pixel)
         self.assertEqual(bytes(self.runtime.cpu.mem_read(pixel, 4)), b"\xff\x00\x00\xff")
+        self.call("glDeleteTextures", 0, 0)  # Zero-sized transfers may use a null pointer.
         self.assertEqual(self.call("glGetError"), 0)
 
     def test_legacy_bitmap_filter_fix_is_narrow_and_updates_real_texture(self):

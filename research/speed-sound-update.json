@@ -1,0 +1,178 @@
+{
+  "version": "speed-audio-3",
+  "validation_platform": "Native Windows x64 executable under Wine 10; ALSA file/null sink used for audio; physical Windows 11 untested",
+  "runtime_tests": {
+    "linux": 23,
+    "windows_under_wine": 23
+  },
+  "native_audio_smoke": "Two overlapping PCM channels; finite and infinite looping; volume; original MP3 play/pause/resume/stop; 1000 cached status queries without blocking rendering",
+  "startup_comparison": [
+    {
+      "build": "controls-2",
+      "seconds": 45.257,
+      "exit_code": 0,
+      "status": "frame_limit_reached",
+      "error": null,
+      "frames": 420,
+      "frame_timing": {
+        "recent_fps": 20.55,
+        "p95_frame_ms": 112.1,
+        "sample_frames": 180
+      },
+      "audio": {
+        "available": false,
+        "playback_tested": false,
+        "reason": "Audio playback backend is not implemented"
+      }
+    },
+    {
+      "build": "speed-audio-3-async",
+      "seconds": 41.267,
+      "exit_code": 0,
+      "status": "frame_limit_reached",
+      "error": null,
+      "frames": 420,
+      "frame_timing": {
+        "recent_fps": 20.68,
+        "p95_frame_ms": 81.06,
+        "sample_frames": 180
+      },
+      "audio": {
+        "available": true,
+        "backend": "Windows WinMM PCM + MCI MP3",
+        "pcm_plays": 1,
+        "music_plays": 2,
+        "nonzero_pcm_plays": 1,
+        "last_error": null,
+        "events": [
+          {
+            "function": "s3eSoundGetFreeChannel",
+            "args": [
+              4294967295,
+              0,
+              0,
+              4294967295
+            ]
+          },
+          {
+            "function": "s3eSoundChannelSetInt",
+            "args": [
+              0,
+              1,
+              11025,
+              4294967295
+            ]
+          },
+          {
+            "function": "s3eSoundChannelPlay",
+            "args": [
+              0,
+              272075440,
+              3917,
+              1
+            ],
+            "offset_samples": 0,
+            "played": true,
+            "sample_rate": 11025,
+            "pcm_bytes": 7834
+          },
+          {
+            "function": "s3eAudioIsCodecSupported",
+            "args": [
+              2,
+              1,
+              100,
+              1242003912
+            ]
+          },
+          {
+            "function": "s3eAudioPlay",
+            "args": [
+              272129472,
+              0,
+              4,
+              1242001152
+            ],
+            "path": "Zipmount://assets/audio/bgm_loading_1.mp3",
+            "played": true
+          },
+          {
+            "function": "s3eAudioStop",
+            "args": [
+              1,
+              0,
+              271947248,
+              1242004156
+            ]
+          },
+          {
+            "function": "s3eAudioIsCodecSupported",
+            "args": [
+              2,
+              0,
+              100,
+              1242003912
+            ]
+          },
+          {
+            "function": "s3eAudioPlay",
+            "args": [
+              273150304,
+              0,
+              4,
+              1242001152
+            ],
+            "path": "Zipmount://assets/audio/bgm_menu_1.mp3",
+            "played": true
+          }
+        ]
+      }
+    }
+  ],
+  "implementation": {
+    "graphics": "Checked host views into pinned mapped guest RAM, cached GLES signatures, reusable Unicorn register buffers, bounded chunk string reads",
+    "music": "Original MP3 files decoded by Windows MCI on a host worker; status cached without guest CPU access",
+    "effects": "Original guest-decoded signed 16-bit mono PCM through WinMM, SDK rate/volume/repeat/sample-offset respected"
+  },
+  "abi_evidence": {
+    "sdk": "User-supplied 1.6.11 libs3e_android.so",
+    "s3eSoundChannelPlay": "0x9af98: end = source + sample_count * 2; fifth argument sample offset passed to 0x9d9a8",
+    "s3eSoundChannelSetInt": "0x9bf80: property 0 = 16.16 pitch; 1 = sample rate Hz; 3 = volume 0..256",
+    "s3eAudioIsCodecSupported": "0x640a0: codec 2 -> WinMobAudioSupportMP3",
+    "s3eAudioGetInt": "0x637b8: property 6 available; property 0 volume; platform status property 1 uses 1 for playing (0x64970)"
+  },
+  "limitations": [
+    "Full gameplay and sustained physical Windows frame rate unverified",
+    "Mod import/export tools not implemented",
+    "Shake-cheat investigation excluded per user request"
+  ],
+  "gameplay": {
+    "saved_sim_loaded": "Alex",
+    "house_entered": true,
+    "mouse_wheel_zoom_retained": true,
+    "normal_close": "user_closed",
+    "guest_error": null,
+    "shutdown_completed": true,
+    "audio": {
+      "available": true,
+      "backend": "Windows WinMM PCM + MCI MP3",
+      "pcm_plays": 10,
+      "music_plays": 4,
+      "nonzero_pcm_plays": 10,
+      "last_error": null
+    }
+  },
+  "packaging": {
+    "patch_applied_to_original_v1": true,
+    "patch_sources_match": true,
+    "full_zip_sources_match": true,
+    "crc_validation_passed": true,
+    "private_saves_or_cache_in_archives": false,
+    "native_exe_launch": {
+      "status": "frame_limit_reached",
+      "error": null,
+      "frames": 3
+    },
+    "final_native_audio_text_window_smokes": "passed"
+  }
+}

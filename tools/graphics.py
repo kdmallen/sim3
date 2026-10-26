@@ -50,6 +50,7 @@ class Graphics:
                 raise RuntimeError("No EGL library is available")
             self.library = C.CDLL(library)
         self.functions = {}
+        self.call_plans = {}
         self.handles = {}
         self.reverse_handles = {}
         self.next_handle = 0x71000001
@@ -350,10 +351,14 @@ class Graphics:
         raise GraphicsUnsupported("Unimplemented EGL call: " + name)
 
     def gl_call(self, name):
-        if name not in self.gl_prototypes:
-            raise GraphicsUnsupported("GL declaration not implemented: " + name)
-        returns, declarations = self.gl_prototypes[name]
-        types = [self.ctype(declaration) for declaration, _ in declarations]
+        if name not in self.call_plans:
+            if name not in self.gl_prototypes:
+                raise GraphicsUnsupported("GL declaration not implemented: " + name)
+            returns, declarations = self.gl_prototypes[name]
+            types = [self.ctype(declaration) for declaration, _ in declarations]
+            function = self.gl_function(name, self.ctype(returns), *types)
+            self.call_plans[name] = declarations, types, function
+        declarations, types, function = self.call_plans[name]
         raw = [self.runtime.argument(index) for index in range(len(types))]
         if name == "glTexParameteri" and raw[0] not in (0x0DE1, 0x8513) and self.invalid_texture_call is None:
             from unicorn.arm_const import UC_ARM_REG_SP
@@ -379,7 +384,6 @@ class Graphics:
                 self.runtime.trace[-1]["legacy_texture_name"] = raw[0]
                 raw[0] = 0x0DE1
                 self.texture_parameter_compatibility_calls += 1
-        function = self.gl_function(name, self.ctype(returns), *types)
         if name == "glGetString":
             # The host driver offers ES 3.2, while this bridge implements ES 2.0
             # core. Do not advertise extension entry points we cannot marshal.
@@ -754,9 +758,10 @@ class Graphics:
         self.runtime.input.observe_zoom_knob(position)
 
     def input_buffer(self, pointer, length):
-        if not 0 <= length <= 64 * 1024 * 1024:
-            raise ValueError("GL transfer exceeds memory budget")
-        return C.create_string_buffer(bytes(self.runtime.cpu.mem_read(pointer, length)))
+        if length == 0:
+            return (C.c_char * 0)()
+        address = self.runtime.memory.pointer(pointer, length)
+        return (C.c_char * length).from_address(address.value)
 
     def pixel_bytes(self, width, height, format_, type_, alignment):
         if width > 16384 or height > 16384 or alignment not in (1, 2, 4, 8):
