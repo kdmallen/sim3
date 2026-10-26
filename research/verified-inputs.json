@@ -1,0 +1,109 @@
+{
+  "apk": {
+    "name": "Los Sims 3_1.6.11.apk",
+    "bytes": 2492793,
+    "sha256": "5404b97d48681d190fa0e28e8571c55e3960f97654b8eb894dc2ece2d102a89b",
+    "version": "1.6.11",
+    "package": "com.eamobile.sims3_row_qwf",
+    "version_code": 1006011
+  },
+  "obb": {
+    "name": "main.1006011.com.eamobile.sims3_row_qwf.obb",
+    "bytes": 104470809,
+    "sha256": "371166624b179611c50f6e770e5f929e75832ccf116a9e619a52e3599a82056d",
+    "crc32": "e582d305",
+    "crc32_matches_earlier_split_zip_header": true,
+    "zip_entry_count": 24,
+    "zip_crc_validation_passed": true
+  },
+  "rar_volumes": [
+    {
+      "name": "main.1006011.com.eamobile.sims3_row_qwf.part01.rar",
+      "bytes": 5242880,
+      "sha256": "676eea2252559a0eb10ff3d6649b3966eb8848a6884b1485c2bdd5d882e2d1de"
+    },
+    {
+      "name": "main.1006011.com.eamobile.sims3_row_qwf.part02.rar",
+      "bytes": 5242880,
+      "sha256": "efa2f4062ada9deee110c50f4019bbf6d0205faf63eae204a3842ef73549a0d3"
+    },
+    {
+      "name": "main.1006011.com.eamobile.sims3_row_qwf.part03.rar",
+      "bytes": 5242880,
+      "sha256": "5b578517c4c78ce75d5e31dbb196ecdd321d3b6c1b46454fa607b2c015a24b88"
+    },
+    {
+      "name": "main.1006011.com.eamobile.sims3_row_qwf.part04.rar",
+      "bytes": 5242880,
+      "sha256": "f2b3dbf539d71ca979d9467ad508c1759418af2a709fd3a9d118f8b268c31ba7"
+    },
+    {
+      "name": "main.1006011.com.eamobile.sims3_row_qwf.part05.rar",
+      "bytes": 5242880,
+      "sha256": "b78b41518e00810438e93eb2cc39ae4238fd33b735b6f73f41e0fdf797cb8832"
+    },
+    {
+      "name": "main.1006011.com.eamobile.sims3_row_qwf.part06.rar",
+      "bytes": 5242880,
+      "sha256": "40af8f02b96171ee549700373b620914c2a62c2b18ab7cf52d26f59f96b5e7d5"
+    },
+    {
+      "name": "main.1006011.com.eamobile.sims3_row_qwf.part07.rar",
+      "bytes": 5242880,
+      "sha256": "dc134ecd16f8c7ba0b0d645bf8e561dcd927c2230bd2cffd2ef119e4ffe911ff"
+    },
+    {
+      "name": "main.1006011.com.eamobile.sims3_row_qwf.part08.rar",
+      "bytes": 5242880,
+      "sha256": "121468f84925b0b5bea5b50c09e59337a561ed120a6fc4b71c63323aa9d1647c"
+    },
+    {
+      "name": "main.1006011.com.eamobile.sims3_row_qwf.part09.rar",
+      "bytes": 5242880,
+      "sha256": "a10a4248e5b134f59fededa7c13eddc06550dc8ccec0fb5fd08bc57b20869044"
+    },
+    {
+      "name": "main.1006011.com.eamobile.sims3_row_qwf.part10.rar",
+      "bytes": 5242880,
+      "sha256": "cee9ebed821914ed8e967a2783d02638637f0ceba6ef06ac9c8442030a2ddbe7"
+    },
+    {
+      "name": "main.1006011.com.eamobile.sims3_row_qwf.part11.rar",
+      "bytes": 5242880,
+      "sha256": "24c5c1fce2a2ec853b62886c4d47a8c58aefe42533651faf1aee0a5ee96bc868"
+    },
+    {
+      "name": "main.1006011.com.eamobile.sims3_row_qwf.part12.rar",
+      "bytes": 5242880,
+      "sha256": "4efe693aa24849f16621570576fa17be668fe0b76927505e29f37bfba77c82f0"
+    },
+    {
+      "name": "main.1006011.com.eamobile.sims3_row_qwf.part13.rar",
+      "bytes": 5242880,
+      "sha256": "7a17cafc844a2ab5d3f7223ff2dd776f77b41c7694404a01edd1515cd4267672"
+    },
+    {
+      "name": "main.1006011.com.eamobile.sims3_row_qwf.part14.rar",
+      "bytes": 4484257,
+      "sha256": "8370108dfef9e1ef4606b03cd355e33a20b654e2222bb22d93658f17c015b3dc"
+    }
+  ],
+  "resources": {
+    "HighRes": {
+      "files": 679,
+      "uncompressed_bytes": 75356220
+    },
+    "LowRes": {
+      "files": 679,
+      "uncompressed_bytes": 61495343
+    }
+  },
+  "all_extracted_resource_sizes_and_hashes_rechecked": true,
+  "playable": false,
+  "windows_executable_built": true,
+  "windows_execution_tested": true,
+  "current_boot_stop": "User EA agreement screen; 420 rendered frames without guest fault",
+  "windows_validation_platform": "Wine 10; real Windows 11 not tested",
+  "full_gameplay_tested": false,
+  "audio_playback_implemented": false
+}

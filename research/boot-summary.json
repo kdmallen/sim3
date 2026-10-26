@@ -1,0 +1,124 @@
+{
+  "status": "frame_limit_reached",
+  "error": null,
+  "imports": 334,
+  "import_references": 342,
+  "relocations": 8204,
+  "memory": {
+    "heap_address_span": 25990480,
+    "active_allocated_bytes": 22587122,
+    "active_allocations": 31768
+  },
+  "playable": false,
+  "windows_executable_built": true,
+  "audio": {
+    "available": false,
+    "playback_tested": false,
+    "reason": "Audio playback backend is not implemented"
+  },
+  "input": {
+    "events_dispatched": 5,
+    "callbacks_completed": 5,
+    "pointer": [
+      509,
+      355
+    ],
+    "registered_callbacks": [
+      {
+        "family": "s3eSurface",
+        "event": 1,
+        "function": 1242960680,
+        "user": 0
+      },
+      {
+        "family": "s3eGL",
+        "event": 0,
+        "function": 1242849068,
+        "user": 0
+      },
+      {
+        "family": "s3eGL",
+        "event": 1,
+        "function": 1242849360,
+        "user": 0
+      },
+      {
+        "family": "s3eSurface",
+        "event": 1,
+        "function": 1242927028,
+        "user": 0
+      },
+      {
+        "family": "s3ePointer",
+        "event": 0,
+        "function": 1242687804,
+        "user": 0
+      },
+      {
+        "family": "s3ePointer",
+        "event": 1,
+        "function": 1242687716,
+        "user": 0
+      },
+      {
+        "family": "s3eKeyboard",
+        "event": 0,
+        "function": 1242686800,
+        "user": 0
+      },
+      {
+        "family": "s3eDevice",
+        "event": 0,
+        "function": 1242687328,
+        "user": 0
+      },
+      {
+        "family": "s3eDevice",
+        "event": 1,
+        "function": 1242687448,
+        "user": 0
+      }
+    ]
+  },
+  "graphics": {
+    "egl_version": [
+      1,
+      5
+    ],
+    "vendor": "Google Inc. (NVIDIA)",
+    "renderer": "ANGLE (NVIDIA, NVIDIA GeForce GTX 470 (0x000006CD) Direct3D11 vs_5_0 ps_5_0, D3D11-9.21.13.9135)",
+    "version": "OpenGL ES 3.0 (ANGLE 2.1.1 git hash: 1c89805903c1)",
+    "offscreen": false,
+    "guest_api": "OpenGL ES 2.0 core; optional extensions not exposed",
+    "calls": 75770,
+    "frames": 420,
+    "draws": 8501,
+    "pending_gl_errors": [
+      1282
+    ],
+    "legacy_texture_filter_calls": 2584
+  },
+  "validation_platform": "Wine 10 on Linux, native Windows x64 executable with ANGLE D3D11; physical Windows 11 untested",
+  "legal_acceptance": "Pending user choice; no agreement accepted or bypassed",
+  "tests": {
+    "linux": {
+      "passed": 11,
+      "failed": 0
+    },
+    "windows_under_wine": {
+      "passed": 11,
+      "failed": 0
+    },
+    "native_window_smoke": "passed"
+  },
+  "normal_launch": {
+    "no_arguments": true,
+    "native_pointer_advanced_language": true,
+    "status": "user_closed",
+    "error": null,
+    "frames": 865,
+    "draws": 27296,
+    "close_retest_frames": 16
+  },
+  "shutdown_fix": "SDK s3eDeviceSetInt property 15 byte storage implemented from native disassembly"
+}

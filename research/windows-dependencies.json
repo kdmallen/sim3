@@ -1,0 +1,34 @@
+[
+  {
+    "name": "python",
+    "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20261021/cpython-3.13.17+20261021-x86_64-pc-windows-msvc-install_only_stripped.tar.gz",
+    "algorithm": "sha256",
+    "expected_hash": "56cde3b1a1dcc36576753cb408ee0c3568d211baafa0eee40423adc147c480f2",
+    "bytes": 21986637,
+    "filename": "cpython-3.13.17+20261021-x86_64-pc-windows-msvc-install_only_stripped.tar.gz"
+  },
+  {
+    "name": "unicorn",
+    "url": "https://files.pythonhosted.org/packages/70/3d/de7be9bd1addabe6d8a1369381f8a080400c349850e978689c5e18287957/unicorn-2.1.4-cp37-abi3-win_amd64.whl",
+    "algorithm": "sha256",
+    "expected_hash": "d7107500c64ce5c168fbff6bef9485b5db1350050036f4cea568650cf8bdbdf5",
+    "bytes": 15943079,
+    "filename": "unicorn-2.1.4-cp37-abi3-win_amd64.whl"
+  },
+  {
+    "name": "angle",
+    "url": "https://api.nuget.org/v3-flatcontainer/avalonia.angle.windows.natives/2.1.27548.20260419/avalonia.angle.windows.natives.2.1.27548.20260419.nupkg",
+    "metadata_url": "https://api.nuget.org/v3/catalog0/data/2026.04.20.08.03.58/avalonia.angle.windows.natives.2.1.27548.20260419.json",
+    "algorithm": "sha512",
+    "expected_hash": "8f74325403c40e4238fe3a77ac4a5bbe2e50e02c014492d5d233bf42546e0d4f2def8d7985ead670dc5c8e1ed567ac53a53c78819bf3fae9e705ee21f3a3ddc8",
+    "bytes": 6123766,
+    "filename": "avalonia.angle.windows.natives.2.1.27548.20260419.nupkg"
+  },
+  {
+    "name": "unicorn_source",
+    "url": "https://files.pythonhosted.org/packages/b2/1b/b4248aa8422e86de690cf8e85cf8feae4c33405a097d1ebe71570bdaa6f5/unicorn-2.1.4.tar.gz",
+    "algorithm": "sha256",
+    "expected_hash": "00567a70e323f749b419cd86bee4f9115beab7ebba32194581c090cbb7c59cff",
+    "filename": "unicorn-2.1.4.tar.gz"
+  }
+]

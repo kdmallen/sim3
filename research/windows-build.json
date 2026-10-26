@@ -1,0 +1,11 @@
+{
+  "file": "local-data/releases/Sims3-Windows-test.zip",
+  "bytes": 146503508,
+  "sha256": "6f3b64cca8649c4e9ab0bb54129ac85ca79a0f02241757b1d586154c8d1c5602",
+  "zip_crc_validation_passed": true,
+  "native_windows_version_tested": false,
+  "wine_10_validated": true,
+  "audio_implemented": false,
+  "full_gameplay_validated": false,
+  "normal_close_test_passed": true
+}

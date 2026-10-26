@@ -1,0 +1,8 @@
+__pycache__/
+.venv/
+local-data/
+reports/
+*.apk
+*.obb
+*.rar
+*.z[0-9][0-9]
