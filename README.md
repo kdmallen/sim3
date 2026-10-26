@@ -12,6 +12,10 @@ No acceptance is supplied or bypassed by the runtime.
 
 ## Running the Windows build
 
+[Download Sims3-Windows-test.zip from GitHub](https://github.com/kdmallen/sim3/blob/main/downloads/Sims3-Windows-test.zip)
+using the file page's **Download raw file** button. The ZIP is stored using Git
+LFS. Download this file rather than GitHub's automatic source-code ZIP.
+
 Extract the complete portable ZIP and double-click `Sims3.exe`. Keep the adjacent
 folders and DLLs together. The first run prepares both resource resolutions.
 Use mouse clicks/drags for touch input. Arrow keys or WASD provide virtual tilt.
