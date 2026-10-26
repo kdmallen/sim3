@@ -12,13 +12,36 @@ No acceptance is supplied or bypassed by the runtime.
 
 ## Running the Windows build
 
+[Already have the original build? Download the small controls update](https://github.com/kdmallen/sim3/blob/main/downloads/Sims3-Controls-Update.zip).
+Close the game, extract the update into the folder containing your existing
+`Sims3.exe`, and replace the matching files. Start `Sims3.exe` again. Saves stay
+in AppData. Use **Download raw file** on the GitHub file page.
+
 [Download Sims3-Windows-test.zip from GitHub](https://github.com/kdmallen/sim3/blob/main/downloads/Sims3-Windows-test.zip)
 using the file page's **Download raw file** button. The ZIP is stored using Git
 LFS. Download this file rather than GitHub's automatic source-code ZIP.
 
 Extract the complete portable ZIP and double-click `Sims3.exe`. Keep the adjacent
 folders and DLLs together. The first run prepares both resource resolutions.
-Use mouse clicks/drags for touch input. Arrow keys or WASD provide virtual tilt.
+Use mouse clicks/drags for touch input. Name prompts open a normal Windows text
+box: type, press Enter to confirm, or Escape to cancel. The mouse wheel zooms
+through the actual camera slider; it locates the visible thumb before dragging.
+If needed, Ctrl+wheel over the slider's middle calibrates its position.
+
+| Control | Action |
+| --- | --- |
+| Mouse click / drag | Touch, camera pan, menu scrolling |
+| Mouse wheel | Camera zoom |
+| Arrow keys / WASD | Phone tilt |
+| F5 | Phone shake; hold for repeated shaking |
+| F6 | Quick upward jerk for fishing |
+| Escape | Back |
+| F1 | Controls help |
+| F3 | Show or hide FPS |
+
+F5 sends accelerometer input to the original game. The Gardening Tips money
+cheat did not activate during testing in this APK; it is not marked as verified.
+The update does not directly change money.
 Saves, cache, `player.log`, and `last-run.json` live in
 `%LOCALAPPDATA%\Sims3Mobile`. No administrator access is required.
 
@@ -35,20 +58,27 @@ A game fault reports its real error and writes a log; unknown platform APIs stop
 - Rendered the EA splash, Sims splash, language selection, and 3D title/agreement scene using real GLES draws.
 - Executed pointer callbacks in the original ARM game; supplied isolated save-file services.
 - Built a native PE x64 GUI entry point with bundled Python 3.13.17, Unicorn 2.1.4, and ANGLE.
-- Passed 11 ABI/rendering regression tests on Linux and the packaged Windows Python under Wine.
-- Passed native Win32 mouse, keyboard tilt, and orderly window-close smoke checks under Wine.
+- Passed 20 ABI/rendering regression tests on Linux and the packaged Windows Python under Wine.
+- Passed native Win32 mouse, keyboard tilt, F5 shake, and orderly window-close smoke checks under Wine.
 
-Character creation, actual town gameplay, save-game loading, audio, and sustained
-performance remain unverified. Filesystem save round-trip tests do not establish
-that a complete game save/load cycle succeeds. A pending GL_INVALID_OPERATION
-from the original rendering sequence is retained in diagnostic reports; errors
-are not silently discarded.
+Character creation and typed naming were checked in the real game, followed by
+entering the house, saving, restarting, and loading the saved Sim. Mouse-wheel
+zoom was checked in both directions against the game's real camera slider.
+Full gameplay, audio, and sustained performance on physical Windows remain
+unverified. Diagnostic runs retain legacy GL errors; the guest's own error
+queries still return actual driver errors during normal play.
+
+The controls update reduces repeated guest/host calls and removes a forced GPU
+wait after every frame. A 420-frame startup comparison under Wine took 73 seconds
+with the original build and 41 seconds with the update. This is a development
+startup measurement, not a promised Windows frame rate. F3 shows recent FPS.
 
 ## Development environment
 
 Use the existing `/workspace/sim3` checkout; cloud tasks are already isolated.
-Do not create an additional worktree. Keep original game files, unpacked assets,
-private saves, and binary builds outside source control (`local-data/` is ignored).
+Do not create an additional worktree. Keep working copies of game files,
+unpacked assets, private saves, and intermediate builds in ignored `local-data/`.
+The user-authorized complete release ZIP is tracked through Git LFS in `downloads/`.
 
 ```sh
 python -m venv .venv
@@ -95,7 +125,8 @@ PE exports from Python, kernel32, and shell32. Wine's export DLLs serve only as
 link-time import definitions; those DLLs are not shipped. The output imports
 Windows system libraries by name. No compiler C runtime is required by the launcher.
 The Windows build includes dependency notices and the unmodified Unicorn engine
-source archive. Source-control contents exclude the original game binaries.
+source archive. Original game binaries are included only in the user-authorized Git LFS download;
+private save files and caches remain outside source control.
 
 The player can run bounded Windows diagnostics with `--frames N`,
 `--profile PATH`, and `--tap FRAME:X:Y`. Run `tests/windows_window_smoke.py` with

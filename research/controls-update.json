@@ -1,0 +1,85 @@
+{
+  "version": "controls-2",
+  "platform_tested": "Windows x64 runtime under Wine 10, ANGLE D3D11/Mesa; physical Windows 11 not tested",
+  "tests": {
+    "linux_passed": 20,
+    "windows_passed": 20,
+    "native_text": "original ARM wrapper, Unicode typing, cancellation passed",
+    "native_window": "mouse, keyboard tilt, F5 shake, orderly close"
+  },
+  "gameplay": {
+    "name_entered": "Alex",
+    "character_creation": true,
+    "house_entered": true,
+    "basic_save_reload": true,
+    "mouse_wheel_zoom_in": true,
+    "mouse_wheel_zoom_out": true,
+    "shutdown_completed": true
+  },
+  "input": {
+    "events_dispatched": 78,
+    "callbacks_completed": 78,
+    "pointer": [
+      218,
+      151
+    ],
+    "text_requests": 0,
+    "zoom_gestures_completed": 2,
+    "zoom_probe_hits": 2,
+    "zoom_probe_misses": 0,
+    "last_zoom_knob": [
+      772,
+      119
+    ],
+    "last_zoom_drag": {
+      "x": 772,
+      "start": 119,
+      "target": 79
+    }
+  },
+  "performance_startup_sample": [
+    {
+      "build": "original",
+      "seconds": 72.951,
+      "exit_code": 0,
+      "status": "frame_limit_reached",
+      "error": null,
+      "frames": 420,
+      "draws": 6842,
+      "python_api_calls": 761537,
+      "native_service_counts": {}
+    },
+    {
+      "build": "controls",
+      "seconds": 41.369,
+      "exit_code": 0,
+      "status": "frame_limit_reached",
+      "error": null,
+      "frames": 420,
+      "draws": 7163,
+      "python_api_calls": 248220,
+      "native_service_counts": {
+        "thread_slot_4": 255479,
+        "s3eMemoryGetInt": 29345,
+        "s3eMemorySetInt": 204100
+      }
+    }
+  ],
+  "limitations": [
+    "Audio not implemented",
+    "Full gameplay and sustained physical Windows performance unverified",
+    "Gardening Tips money cheat did not activate during the test; F5 provides sensor input"
+  ],
+  "legal_acceptance": "Test profile accepted through original UI with explicit user authorization; application never auto-accepts.",
+  "packaging": {
+    "patch_applied_to_original_build": true,
+    "full_and_patch_sources_match": true,
+    "patched_original_native_exe_launch": {
+      "status": "frame_limit_reached",
+      "error": null,
+      "frames": 3,
+      "game_data_crc_verified": true
+    },
+    "private_saves_or_cache_in_archives": false
+  }
+}

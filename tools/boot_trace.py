@@ -27,6 +27,8 @@ from jni_bridge import JniBridge, JniUnsupported
 from filesystem import FileSystem, FileUnsupported
 from thread_bridge import ThreadBridge, ThreadUnsupported
 from input_device import InputDevice
+from text_input import TextInput, TextInputUnsupported
+from fast_services import FastServices
 
 
 class UnsupportedImport(RuntimeError):
@@ -125,7 +127,7 @@ class Runtime:
     HEAP_BYTES = 128 * 1024 * 1024
 
     def __init__(self, image, config=None, apk=None, obb=None, resources=None, saves=None,
-                 frame_limit=1, frames_directory=None, taps=()):
+                 frame_limit=1, frames_directory=None, taps=(), native_services=True):
         self.image = image
         self.api_names = list(image.imports)
         self.api_indices = {name: index for index, name in enumerate(self.api_names)}
@@ -177,13 +179,34 @@ class Runtime:
         self.frames_directory = frames_directory or (Path(__file__).resolve().parents[1] /
                                                        "reports/frames" / uuid.uuid4().hex[:12])
         self.quit_requested = False
+        self.shutdown_completed = False
         self.window = None
         self.input = InputDevice(self, taps)
+        self.text_input = TextInput(self)
         self.callback_stack = []
         self.callback_returns = 0
         self.api_call_limit = 1_000_000
+        self._api_args = None
+        self._api_control_changed = False
+        if native_services:
+            self.fast_services = FastServices(self)
+            for offset, index in image.references:
+                address = self.fast_services.entries.get(image.imports[index])
+                if address is not None:
+                    self.cpu.mem_write(image.base + offset, struct.pack("<I", address))
+
+    @property
+    def current_heap(self):
+        return self.fast_services.heap if hasattr(self, "fast_services") else self._current_heap
+
+    @current_heap.setter
+    def current_heap(self, value):
+        self._current_heap = value
+        if hasattr(self, "fast_services"):
+            self.fast_services.heap = value
 
     def jump(self, address):
+        self._api_control_changed = True
         flags = self.cpu.reg_read(UC_ARM_REG_CPSR)
         self.cpu.reg_write(UC_ARM_REG_CPSR, (flags & ~0x20) | (0x20 if address & 1 else 0))
         self.cpu.reg_write(UC_ARM_REG_PC, address & ~1)
@@ -219,6 +242,8 @@ class Runtime:
 
     def argument(self, index):
         if index < 4:
+            if self._api_args is not None:
+                return self._api_args[index]
             return self.cpu.reg_read((UC_ARM_REG_R0, UC_ARM_REG_R1,
                                       UC_ARM_REG_R2, UC_ARM_REG_R3)[index])
         pointer = self.cpu.reg_read(UC_ARM_REG_SP) + (index - 4) * 4
@@ -230,7 +255,8 @@ class Runtime:
                 raise RuntimeError("Import trampoline budget exceeded")
             self.api_indices[name] = len(self.api_names)
             self.api_names.append(name)
-        return self.API + self.api_indices[name] * 16
+        address = self.API + self.api_indices[name] * 16
+        return self.fast_services.entries.get(name, address) if hasattr(self, "fast_services") else address
 
     def get_graphics(self):
         if self.graphics is None:
@@ -294,9 +320,20 @@ class Runtime:
         # Complete the guest return in the hook itself. A CPU time slice can
         # end after a slow host service and before the trampoline's BX LR;
         # leaving PC there would execute the service twice on resume.
-        self.api_dispatch(cpu, address, size, _)
-        if cpu.reg_read(UC_ARM_REG_PC) == address:
-            self.jump(cpu.reg_read(UC_ARM_REG_LR))
+        registers = cpu.reg_read_batch((UC_ARM_REG_R0, UC_ARM_REG_R1, UC_ARM_REG_R2,
+                                        UC_ARM_REG_R3, UC_ARM_REG_LR))
+        self._api_args = registers[:4]
+        self._api_return = registers[4]
+        self._api_control_changed = False
+        try:
+            self.api_dispatch(cpu, address, size, _)
+            if not self._api_control_changed:
+                if registers[4] & 1:
+                    self.jump(registers[4])
+                else:
+                    cpu.reg_write(UC_ARM_REG_PC, registers[4])
+        finally:
+            self._api_args = None
 
     def api_dispatch(self, cpu, address, size, _):
         index, within = divmod(address - self.API, 16)
@@ -307,10 +344,12 @@ class Runtime:
             self.callback_returns += 1
             self.next_callback()
             return
-        args = [cpu.reg_read(r) for r in
-                (UC_ARM_REG_R0, UC_ARM_REG_R1, UC_ARM_REG_R2, UC_ARM_REG_R3)]
+        if name == "__thread_return":
+            self.threads.complete(self._api_args[0])
+            return
+        args = list(self._api_args)
         record = {"function": name, "args": args,
-                  "caller": cpu.reg_read(UC_ARM_REG_LR) - self.image.base}
+                  "caller": self._api_return - self.image.base}
         self.trace.append(record)
         if len(self.trace_head) < 2000:
             self.trace_head.append(record)
@@ -326,6 +365,14 @@ class Runtime:
                 raise UnsupportedImport(str(exc)) from exc
             if result is not None:
                 cpu.reg_write(UC_ARM_REG_R0, result & 0xFFFFFFFF)
+            return
+        if name.startswith("osread_slot_"):
+            try:
+                result = self.text_input.dispatch(name)
+            except TextInputUnsupported as exc:
+                self.status = "unsupported_import"
+                raise UnsupportedImport(str(exc)) from exc
+            cpu.reg_write(UC_ARM_REG_R0, result)
             return
         if name.startswith(("s3eFile", "vfs_slot_")):
             try:
@@ -385,7 +432,10 @@ class Runtime:
             time.sleep(milliseconds / 1000)
             if self.window:
                 self.window.pump()
-            self.invoke_callbacks(self.input.poll_device() + self.input.poll_keyboard())
+            requests = self.input.poll_device() + self.input.poll_keyboard()
+            if not requests and self.threads.start_pending():
+                return
+            self.invoke_callbacks(requests)
             return
         if name == "s3eDeviceCheckQuitRequest":
             cpu.reg_write(UC_ARM_REG_R0, int(self.quit_requested))
@@ -477,6 +527,12 @@ class Runtime:
             cpu.reg_write(UC_ARM_REG_R0, 0)
             return
         if name == "s3eExtGetHash":
+            if args[0] == TextInput.HASH and args[2] == 16:
+                functions = [self.import_trap("osread_slot_" + str(index)) for index in range(4)]
+                cpu.mem_write(args[1], struct.pack("<4I", *functions))
+                record["result"] = "provided_native_text_entry"
+                cpu.reg_write(UC_ARM_REG_R0, 0)
+                return
             if args[0] == 3423291944 and args[2] == 80:
                 functions = [self.import_trap("thread_slot_" + str(index)) for index in range(20)]
                 cpu.mem_write(args[1], struct.pack("<20I", *functions))
@@ -695,16 +751,21 @@ class Runtime:
         self.status = "running"
         address = self.image.base
         error = None
+        shutdown_deadline = None
         try:
             while True:
                 self.window.pump()
                 if self.quit_requested:
-                    self.status = "user_closed"
-                    break
-                self.cpu.emu_start(address, self.API + 0xFFFC, timeout=20_000)
+                    if shutdown_deadline is None:
+                        shutdown_deadline = time.monotonic() + 10
+                    elif time.monotonic() >= shutdown_deadline:
+                        self.status = "user_closed"
+                        break
+                self.cpu.emu_start(address, self.API + 0xFFFC, timeout=100_000)
                 pc = self.cpu.reg_read(UC_ARM_REG_PC)
                 if pc == self.API + 0xFFFC:
-                    self.status = "entry_returned"
+                    self.shutdown_completed = True
+                    self.status = "user_closed" if self.quit_requested else "entry_returned"
                     break
                 address = pc | (1 if self.cpu.reg_read(UC_ARM_REG_CPSR) & 0x20 else 0)
                 if self.window.minimized:
@@ -723,6 +784,7 @@ class Runtime:
         head_ids = {id(record) for record in self.trace_head}
         trace = self.trace_head + [record for record in self.trace if id(record) not in head_ids]
         report = {"status": self.status, "error": error,
+                "shutdown_completed": self.shutdown_completed,
                 "pc": self.cpu.reg_read(UC_ARM_REG_PC),
                 "lr": self.cpu.reg_read(UC_ARM_REG_LR),
                 "imports": len(self.image.imports),
@@ -736,9 +798,16 @@ class Runtime:
                 "playable": False, "windows_executable_built": False}
         report["audio"] = {"available": False, "playback_tested": False,
                            "reason": "Audio playback backend is not implemented"}
+        report["native_service_counts"] = self.fast_services.counts() if hasattr(self, "fast_services") else {}
         report["input"] = {"events_dispatched": self.input.events_dispatched,
                            "callbacks_completed": self.callback_returns,
                            "pointer": [self.input.x, self.input.y],
+                           "text_requests": self.text_input.requests,
+                           "zoom_gestures_completed": self.input.zoom_gestures_completed,
+                           "zoom_probe_hits": self.input.zoom_probe_hits,
+                           "zoom_probe_misses": self.input.zoom_probe_misses,
+                           "last_zoom_knob": self.input.last_zoom_knob,
+                           "last_zoom_drag": self.input.last_zoom_drag,
                            "registered_callbacks": [{"family": family, "event": event,
                                                      "function": function, "user": user}
                                                     for (family, event, function), user in self.callbacks.items()]}
@@ -747,6 +816,7 @@ class Runtime:
                                       frames=self.graphics.frames, draws=self.graphics.draws,
                                       captures=self.graphics.captures,
                                       pending_gl_errors=self.graphics.error_queue,
+                                      frame_timing=self.graphics.frame_stats(),
                                       invalid_texture_call=self.graphics.invalid_texture_call,
                                       legacy_texture_filter_calls=self.graphics.texture_parameter_compatibility_calls)
             self.graphics.close()

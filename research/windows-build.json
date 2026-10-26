@@ -1,11 +1,21 @@
 {
-  "file": "local-data/releases/Sims3-Windows-test.zip",
-  "bytes": 146503508,
-  "sha256": "6f3b64cca8649c4e9ab0bb54129ac85ca79a0f02241757b1d586154c8d1c5602",
+  "file": "downloads/Sims3-Windows-test.zip",
+  "bytes": 146512533,
+  "sha256": "e743df16557e7b3354cde5f918741d80c8ac1383b5235bafb92daba12dad5a8e",
   "zip_crc_validation_passed": true,
+  "version": "controls-2",
+  "files": 2818,
+  "patch": {
+    "file": "downloads/Sims3-Controls-Update.zip",
+    "bytes": 46817,
+    "sha256": "a1d6ebd6d4bf7c82fb0cbddd348bd7bcb40f8c36310e23dd672f748a2b41b2dd",
+    "zip_crc_validation_passed": true
+  },
   "native_windows_version_tested": false,
   "wine_10_validated": true,
   "audio_implemented": false,
   "full_gameplay_validated": false,
-  "normal_close_test_passed": true
+  "basic_gameplay_validated": true,
+  "normal_close_test_passed": true,
+  "runtime_tests_passed": 20
 }

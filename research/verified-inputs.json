@@ -99,11 +99,12 @@
     }
   },
   "all_extracted_resource_sizes_and_hashes_rechecked": true,
-  "playable": false,
+  "playable": true,
   "windows_executable_built": true,
   "windows_execution_tested": true,
-  "current_boot_stop": "User EA agreement screen; 420 rendered frames without guest fault",
+  "current_boot_stop": "Normal user close after typed Sim creation, house entry, save/reload, and bidirectional wheel zoom; no guest fault",
   "windows_validation_platform": "Wine 10; real Windows 11 not tested",
   "full_gameplay_tested": false,
-  "audio_playback_implemented": false
+  "audio_playback_implemented": false,
+  "basic_gameplay_tested": true
 }

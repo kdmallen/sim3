@@ -30,10 +30,17 @@ def main():
         send(window.handle, 0x0101, 39, 0)
         runtime.input.poll_keyboard()
         assert runtime.input.acceleration("X") == 0
+        tick = [0.0]
+        runtime.input.clock = lambda: tick[0]
+        send(window.handle, 0x0100, 116, 0)
+        first = runtime.input.acceleration("X")
+        tick[0] += 0.08
+        assert first * runtime.input.acceleration("X") < 0
+        send(window.handle, 0x0101, 116, 0)
         send(window.handle, 0x0010, 0, 0)
         assert runtime.quit_requested
         assert not window.closed  # EGL cleanup must precede HWND destruction.
-        print("PASS: native mouse, keyboard tilt, and orderly close")
+        print("PASS: native mouse, keyboard tilt, F5 shake, and orderly close")
     finally:
         window.close()
         assert window.closed

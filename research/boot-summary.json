@@ -120,5 +120,6 @@
     "draws": 27296,
     "close_retest_frames": 16
   },
-  "shutdown_fix": "SDK s3eDeviceSetInt property 15 byte storage implemented from native disassembly"
+  "shutdown_fix": "SDK s3eDeviceSetInt property 15 byte storage implemented from native disassembly",
+  "historical_checkpoint": "Original build before user-authorized agreement acceptance and controls update; current results are in controls-update.json"
 }

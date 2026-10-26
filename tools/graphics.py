@@ -11,6 +11,7 @@ import re
 import struct
 import time
 import zlib
+from collections import deque
 
 
 class GraphicsUnsupported(RuntimeError):
@@ -73,6 +74,7 @@ class Graphics:
         self.invalid_texture_call = None
         self.captures = []
         self.last_present_ns = 0
+        self.frame_durations = deque(maxlen=180)
         self.gl_prototypes = self.read_prototypes()
         if os.name == "nt":
             self.display = self.egl_function("eglGetDisplay", C.c_void_p, C.c_void_p)(None)
@@ -431,11 +433,12 @@ class Graphics:
             else:
                 function(*raw)
             self.draws += 1
-            error = self.gl_function("glGetError", C.c_uint)()
-            if error:
-                if error not in self.error_queue:
-                    self.error_queue.append(error)
-                self.runtime.trace[-1]["gl_error"] = error
+            if self.runtime.frame_limit is not None:
+                error = self.gl_function("glGetError", C.c_uint)()
+                if error:
+                    if error not in self.error_queue:
+                        self.error_queue.append(error)
+                    self.runtime.trace[-1]["gl_error"] = error
             return None
         if name in ("glGetIntegerv", "glGetFloatv", "glGetBooleanv"):
             sizes = {0x0B70: 2, 0x846D: 2, 0x846E: 2, 0x0D3A: 2,
@@ -653,24 +656,42 @@ class Graphics:
         bind(0x8892, self.array_buffer)
 
     def present(self):
-        self.gl_function("glFinish", None)()
+        # eglSwapBuffers submits the completed frame. A glFinish here forces
+        # the CPU to wait for the entire GPU queue after every presentation.
         # Pbuffers do not wait for vertical refresh as the original display did.
         # Pace the virtual display at 60 Hz using real elapsed time.
         now = time.monotonic_ns()
         due = self.last_present_ns + 1_000_000_000 // 60
         if now < due:
             time.sleep((due - now) / 1_000_000_000)
-        self.last_present_ns = time.monotonic_ns()
+        completed = time.monotonic_ns()
+        if self.last_present_ns:
+            self.frame_durations.append((completed - self.last_present_ns) / 1_000_000)
+        self.last_present_ns = completed
         self.frames += 1
         self.runtime.input.on_frame(self.frames)
         if self.runtime.window:
             if self.runtime.window.status:
                 self.runtime.window.set_status(None)
             self.runtime.window.pump()
+            if self.runtime.window.show_fps:
+                self.runtime.window.update_frame_rate(self.frame_stats()["recent_fps"])
         if self.runtime.frame_limit is not None and self.frames >= self.runtime.frame_limit:
             raise FrameLimitReached(f"Captured {self.frames} requested frame(s)")
 
+    def frame_stats(self):
+        values = sorted(self.frame_durations)
+        return {"recent_fps": round(1000 * len(values) / sum(values), 2) if values and sum(values) else 0,
+                "p95_frame_ms": round(values[int((len(values) - 1) * 0.95)], 2) if values else 0,
+                "sample_frames": len(values)}
+
+    def reset_frame_timing(self):
+        self.last_present_ns = 0
+        self.frame_durations.clear()
+
     def capture_frame(self, frame):
+        if self.runtime.input.wheel_steps and self.runtime.input.zoom_gesture is None:
+            self.sample_zoom_knob()
         limit = self.runtime.frame_limit
         capture = limit is not None and (frame <= 3 or frame % 30 == 0 or frame >= limit)
         if capture:
@@ -694,6 +715,43 @@ class Graphics:
                                   "draw_calls": self.draws,
                                   "distinct_pixel_bytes": len(set(raw))})
             print(f"Captured frame {frame}: {destination}", flush=True)
+
+    @staticmethod
+    def locate_zoom_knob(raw, width, height, left, top):
+        """Find the round blue slider thumb in a small, current HUD readback."""
+        rows = []
+        for y in range(height):
+            xs = []
+            offset = (height - y - 1) * width * 4
+            for x in range(width):
+                r, g, b = raw[offset + x * 4:offset + x * 4 + 3]
+                if b > r + 12 and b > g + 8:
+                    xs.append(x)
+            rows.append(xs if 8 <= len(xs) <= 36 else [])
+        groups, start = [], None
+        for index in range(height + 1):
+            valid = index < height and bool(rows[index])
+            if valid and start is None:
+                start = index
+            elif not valid and start is not None:
+                if 8 <= index - start <= 40 and max(map(len, rows[start:index])) >= 12:
+                    groups.append((start, index))
+                start = None
+        if not groups:
+            return None
+        start, end = max(groups, key=lambda group: sum(map(len, rows[group[0]:group[1]])))
+        xs = [x for row in rows[start:end] for x in row]
+        return left + round(sum(xs) / len(xs)), top + (start + end - 1) // 2
+
+    def sample_zoom_knob(self):
+        width, height = self.runtime.surface_width, self.runtime.surface_height
+        left, top, bottom = width - 48, round(height * 0.08), round(height * 0.52)
+        pixels = C.create_string_buffer(48 * (bottom - top) * 4)
+        self.gl_function("glReadPixels", None, C.c_int, C.c_int, C.c_int,
+                         C.c_int, C.c_uint, C.c_uint, C.c_void_p)(
+            left, height - bottom, 48, bottom - top, 0x1908, 0x1401, pixels)
+        position = self.locate_zoom_knob(pixels.raw, 48, bottom - top, left, top)
+        self.runtime.input.observe_zoom_knob(position)
 
     def input_buffer(self, pointer, length):
         if not 0 <= length <= 64 * 1024 * 1024:
