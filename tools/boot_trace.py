@@ -33,6 +33,7 @@ from fast_services import FastServices
 from guest_memory import GuestMemory, ArmRegisters
 from audio import Audio
 from money_cheat import MoneyCheat
+from pawn_unlock import PawnUnlock
 
 
 class UnsupportedImport(RuntimeError):
@@ -210,6 +211,7 @@ class Runtime:
                 if address is not None:
                     self.cpu.mem_write(image.base + offset, struct.pack("<I", address))
         self.money_cheat = MoneyCheat(self)
+        self.pawn_unlock = PawnUnlock(self)
 
     @property
     def current_heap(self):
@@ -836,6 +838,7 @@ class Runtime:
                 "playable": False, "windows_executable_built": False}
         report["audio"] = self.audio.report()
         report["money_cheat"] = self.money_cheat.report()
+        report["pawn_shop_unlock"] = self.pawn_unlock.report()
         self.audio.close()
         report["native_service_counts"] = self.fast_services.counts() if hasattr(self, "fast_services") else {}
         report["input"] = {"events_dispatched": self.input.events_dispatched,

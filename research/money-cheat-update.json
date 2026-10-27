@@ -47,5 +47,6 @@
   "limitations": [
     "Physical Windows 11 not tested; development tests use Wine 10",
     "No fix claimed for the prior 12x travel crash or town-map FPS drop"
-  ]
+  ],
+  "superseded_by": "pawn-unlock-update.json"
 }

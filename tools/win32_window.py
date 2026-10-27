@@ -258,6 +258,7 @@ class Win32Window:
             "F4 / F6 (hold): gradually tilt left / right; release to level.\n"
             "F5: shake the phone (hold for continuous shaking).\n"
             "Gardening Tips open + F5: receive 1,000 Simoleons per press.\n"
+            "Pawn Shop / criminal career: unlock after 15 completed goals.\n"
             "F7: quick upward jerk for fishing.\n"
             "F3: show or hide frame rate.\n"
             "F8: cycle game speed 1x / 2x / 4x / 6x / 8x / 10x / 12x (limited by your computer).\n"

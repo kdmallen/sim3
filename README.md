@@ -42,6 +42,11 @@ If needed, Ctrl+wheel over the slider's middle calibrates its position.
 | F3 | Show or hide FPS |
 | F8 | Cycle 1× / 2× / 4× / 6× / 8× / 10× / 12× game speed |
 
+The **Pawn Shop and criminal career unlock after 15 completed goals**, using
+**Goals Completed** in the game's checklist. Existing progress counts;
+discovered-only goals do not. The original unlock routine saves the change,
+and existing unlocks remain available. See [validation](research/pawn-unlock-update.json).
+
 Open **Help & About**, scroll down, and open **Gardening Tips**. Press **F5**
 to shake and receive **§1,000**, with a confirmation showing the new balance.
 Each new press can repeat the reward; holding F5 gives one reward. F5 retains

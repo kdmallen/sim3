@@ -1,11 +1,17 @@
 # Windows downloads
 
 [Download Sims3-Performance-Update.zip](https://github.com/kdmallen/sim3/blob/main/downloads/Sims3-Performance-Update.zip)
-(57,003 bytes). Click **Download raw file**.
+(58,235 bytes). Click **Download raw file**.
 Close the game, copy all ZIP contents beside **Sims3.exe**, replace files and
 merge tools folders, then restart. Saves remain in AppData. This is cumulative:
 sound, background play, smooth F4/F6 tilt, and earlier fixes are included.
 Earlier patch URLs also supply this latest update.
+
+**Pawn Shop / criminal career:** unlock after **15 completed goals**, using
+the same completed counter as the game's Goals Checklist. Existing progress
+counts, duplicate completions across saved/current records count once, and
+already unlocked careers stay unlocked. Discovered-only goals do not count.
+The original unlock function persists the result through normal settings saves.
 
 **Money cheat:** open **Help & About → Gardening Tips**, then press **F5**.
 Each new press adds **1,000 Simoleons**, up to the original 999,999 balance cap,
@@ -23,13 +29,13 @@ Scalar ARM register writes reuse native call buffers; graphics and allocation
 services take shorter dispatch paths. A native free(NULL) helper avoids a host
 callback for a no-op. Non-null frees retain allocator checks.
 
-37 ABI/rendering tests pass on Linux and the packaged Windows runtime under
+37 ABI/rendering tests and 12 original-ARM Pawn Shop cases pass on Linux and the packaged Windows runtime under
 Wine, including live vertex rewrites, buffer transitions, timer continuity and
 64-bit returns, and checked allocator fallback. Physical Windows FPS and full
 crowded-house gameplay remain unverified. See research/performance-update.json
-for development evidence. The earlier single town-map comparison at 1x measured
-14.81 versus 14.88 FPS: no meaningful average improvement, so the reported
-town-map drop is **not confirmed fixed**. The earlier repeated-fishing freeze remains unverified.
+for prior performance evidence. The earlier town-map comparison measured
+14.81 versus 14.88 FPS; that drop is not confirmed fixed. See research/pawn-unlock-update.json for the
+15-goal unlock evidence. The earlier repeated-fishing freeze remains unverified.
 
 [Complete Sims3-Windows-test.zip](https://github.com/kdmallen/sim3/blob/main/downloads/Sims3-Windows-test.zip)
 includes the update. Click **Download raw file**, extract fully, and run Sims3.exe.
@@ -37,6 +43,6 @@ No separate emulator or Python install is needed. The full ZIP uses Git LFS;
 automatic repository source ZIPs can contain pointers. EA's agreement remains
 for you to review and accept.
 
-SHA256 full: `d0628d7df4cbd8102da18a130372c2d8286c180bfb89b9060d991e8e8f91c0a1`
+SHA256 full: `0e4977c79ed5b340d66cbbbe3941b2c355d83a025fa7135f63a4b63b5274df6c`
 
-SHA256 patch (and earlier aliases): `f1da3f50fee6288d080d029c5c0904a6cda25757497e4cbf892f982b134f43bc`
+SHA256 patch (and earlier aliases): `45750f16735bf6cc63c7049cd7cb32ae47eb6a7a727ecd84959371a5b424b858`

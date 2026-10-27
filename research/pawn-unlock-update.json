@@ -1,0 +1,209 @@
+{
+  "version": "pawn-11",
+  "previous_version": "money-10",
+  "required_completed_goals": 15,
+  "counter": "Original completed-goal counter used for the checklist Completed label; discovered goals excluded",
+  "implementation": {
+    "original_gate_offset": "0x11894",
+    "native_helper_address": "0x62000000",
+    "original_completed_count_offset": "0x11b7c",
+    "original_unlock_and_settings_save_offset": "0x15208",
+    "original_unlock_flag_offset": "0x4b8",
+    "activation": "Three instruction fingerprints; eight-byte absolute jump to ARM helper",
+    "existing_unlocks": "Preserved without recounting or saving again",
+    "new_unlock": "At least 15 completed; original flag setter and settings save called once",
+    "completed_bits": "Original routine unions saved/current completion bits, so duplicate IDs count once",
+    "goals": "No goals are automatically completed by the production patch"
+  },
+  "tests": {
+    "linux_runtime_tests_passed": 37,
+    "windows_under_wine_runtime_tests_passed": 37,
+    "linux_original_arm": {
+      "passed": 12,
+      "cases": [
+        {
+          "case": "zero",
+          "unlocked": false,
+          "save_calls": 0
+        },
+        {
+          "case": "fourteen",
+          "unlocked": false,
+          "save_calls": 0
+        },
+        {
+          "case": "fifteen",
+          "unlocked": true,
+          "save_calls": 1
+        },
+        {
+          "case": "sixteen",
+          "unlocked": true,
+          "save_calls": 1
+        },
+        {
+          "case": "discovered_only",
+          "unlocked": false,
+          "save_calls": 0
+        },
+        {
+          "case": "duplicate_completions",
+          "unlocked": false,
+          "save_calls": 0
+        },
+        {
+          "case": "combined_saved_and_current",
+          "unlocked": true,
+          "save_calls": 1
+        },
+        {
+          "case": "upper_bitset_boundary",
+          "unlocked": true,
+          "save_calls": 1
+        },
+        {
+          "case": "existing_unlock",
+          "unlocked": true,
+          "save_calls": 0
+        },
+        {
+          "case": "changed_signature_11894",
+          "rejected": true
+        },
+        {
+          "case": "changed_signature_11b7c",
+          "rejected": true
+        },
+        {
+          "case": "changed_signature_15208",
+          "rejected": true
+        }
+      ]
+    },
+    "windows_original_arm": {
+      "passed": 12,
+      "cases": [
+        {
+          "case": "zero",
+          "unlocked": false,
+          "save_calls": 0
+        },
+        {
+          "case": "fourteen",
+          "unlocked": false,
+          "save_calls": 0
+        },
+        {
+          "case": "fifteen",
+          "unlocked": true,
+          "save_calls": 1
+        },
+        {
+          "case": "sixteen",
+          "unlocked": true,
+          "save_calls": 1
+        },
+        {
+          "case": "discovered_only",
+          "unlocked": false,
+          "save_calls": 0
+        },
+        {
+          "case": "duplicate_completions",
+          "unlocked": false,
+          "save_calls": 0
+        },
+        {
+          "case": "combined_saved_and_current",
+          "unlocked": true,
+          "save_calls": 1
+        },
+        {
+          "case": "upper_bitset_boundary",
+          "unlocked": true,
+          "save_calls": 1
+        },
+        {
+          "case": "existing_unlock",
+          "unlocked": true,
+          "save_calls": 0
+        },
+        {
+          "case": "changed_signature_11894",
+          "rejected": true
+        },
+        {
+          "case": "changed_signature_11b7c",
+          "rejected": true
+        },
+        {
+          "case": "changed_signature_15208",
+          "rejected": true
+        }
+      ]
+    },
+    "full_game_controlled_private_progress_fixture": {
+      "reload": false,
+      "app": 271895968,
+      "pending": null,
+      "stage": null,
+      "results": [
+        {
+          "stage": 14,
+          "unlocked": 0,
+          "flag": 0,
+          "save_calls": 0
+        },
+        {
+          "stage": 15,
+          "unlocked": 1,
+          "flag": 1,
+          "save_calls": 1
+        },
+        {
+          "stage": "repeat",
+          "unlocked": 1,
+          "flag": 1,
+          "save_calls": 1
+        }
+      ],
+      "raw_flags": [
+        0,
+        1
+      ],
+      "unlock_calls": 1,
+      "save_calls": 1,
+      "frame": 1320,
+      "raw_before_check": 1
+    },
+    "fresh_launch": {
+      "reload": true,
+      "app": 271895968,
+      "pending": null,
+      "stage": null,
+      "results": [
+        {
+          "stage": "reload",
+          "unlocked": 1,
+          "flag": 1,
+          "save_calls": 0
+        }
+      ],
+      "raw_flags": [
+        1
+      ],
+      "unlock_calls": 0,
+      "save_calls": 0,
+      "frame": 1080,
+      "raw_before_check": 1
+    },
+    "fresh_launch_exit_status": "user_closed",
+    "fresh_launch_error": null,
+    "fresh_launch_shutdown_completed": true
+  },
+  "limitations": [
+    "Physical Windows 11 not tested; native Windows runtime tested under Wine 10",
+    "Full-game boundary test uses controlled progress in an isolated test profile",
+    "No fix claimed for prior 12x travel crash or town-map FPS drop"
+  ]
+}
