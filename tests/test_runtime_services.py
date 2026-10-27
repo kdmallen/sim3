@@ -114,6 +114,66 @@ class RuntimeServices(unittest.TestCase):
         with patch("boot_trace.time.time_ns", return_value=123_456_000_000):
             self.assertEqual(self.call("s3eTimerGetUTC"), 123456)
 
+    def money_popup(self):
+        cheat = self.runtime.money_cheat
+        cheat.enabled = True
+        profile, help_, popup = (self.data(bytes(n)) for n in (0x800, 0x180, 0x100))
+        base = self.runtime.image.base
+        for address, value in ((profile, base + cheat.SIM_VTABLE),
+                               (profile + 0x790, 670),
+                               (help_, base + cheat.HELP_VTABLE), (help_ + 0xF8, 5),
+                               (help_ + 0x24, profile), (help_ + 0x17C, popup),
+                               (popup + 0x90, 0x860)):
+            self.runtime.cpu.mem_write(address, struct.pack("<I", value))
+        cheat.help = help_
+        return cheat, profile, help_, popup
+
+    def test_money_shake_returns_from_guest_call_and_keeps_profile(self):
+        cheat, profile, help_, popup = self.money_popup()
+        # A minimal guest function checks the call bridge, not game logic.
+        # The original game's cap/achievements/save are checked in real gameplay.
+        cheat.AWARD = 0x100
+        self.runtime.cpu.mem_write(self.runtime.image.base + cheat.AWARD,
+                                   struct.pack("<4I", 0xE5902790, 0xE0822001,
+                                               0xE5802790, 0xE12FFF1E))
+        messages = []
+        self.runtime.window = SimpleNamespace(pump=lambda: None,
+            show_money_reward=lambda added, balance: messages.append((added, balance)))
+        stack = self.runtime.cpu.reg_read(UC_ARM_REG_SP)
+        self.runtime.input.key(116, True)
+        self.runtime.input.key(116, True)  # Held/repeated key is one reward.
+        self.assertEqual(self.call("s3eDeviceYield", 0), 0)
+        self.assertEqual(cheat.word(profile + 0x790), 1670)
+        self.assertEqual(messages, [])  # No modal UI inside a CPU hook.
+        cheat.show_pending_notice()
+        self.assertEqual(messages, [(1000, 1670)])
+        self.assertFalse(cheat.running)
+        self.assertIn(profile, self.runtime.allocations)
+        self.assertEqual(self.runtime.cpu.reg_read(UC_ARM_REG_SP), stack)
+        self.call("s3eDeviceYield", 0)
+        self.assertEqual(cheat.awards, 1)
+        self.runtime.input.key(116, False)
+        self.runtime.input.key(116, True)
+        self.call("s3eDeviceYield", 0)
+        cheat.show_pending_notice()
+        self.assertEqual(messages[-1], (1000, 2670))
+        self.assertEqual(cheat.total_added, 2000)
+
+    def test_money_shake_rejects_closed_other_or_unloaded_popups(self):
+        cheat, profile, help_, popup = self.money_popup()
+        self.assertEqual(cheat.active_profile(), profile)
+        cheat.shake()
+        self.runtime.cpu.mem_write(help_ + 0xF8, struct.pack("<I", 1))
+        self.assertFalse(cheat.start_pending())  # Closed after the key press.
+        self.runtime.cpu.mem_write(help_ + 0xF8, struct.pack("<I", 5))
+        self.runtime.cpu.mem_write(popup + 0x90, struct.pack("<I", 0x852))
+        cheat.shake()
+        self.assertFalse(cheat.pending)
+        self.runtime.cpu.mem_write(popup + 0x90, struct.pack("<I", 0x860))
+        self.runtime.cpu.mem_write(help_ + 0x24, bytes(4))
+        self.assertEqual(cheat.active_profile(), 0)
+        self.assertEqual(cheat.word(profile + 0x790), 670)
+
     def test_client_vertex_pointer_reuse_checks_bounds_and_keeps_live_data(self):
         graphics = self.runtime.get_graphics()
         pointer = self.data(struct.pack("<6f", -1, -1, 1, -1, 0, 1))

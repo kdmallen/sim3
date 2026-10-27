@@ -20,5 +20,6 @@
     "Actual acceleration depends on CPU capacity",
     "No new town-map or crowded-house FPS fix",
     "Full gameplay at 10x/12x not manually validated"
-  ]
+  ],
+  "superseded_by": "money-cheat-update.json"
 }

@@ -1,14 +1,14 @@
 {
   "file": "downloads/Sims3-Windows-test.zip",
-  "bytes": 146520154,
-  "sha256": "3ed733c46b7988266be48d7a976b6333dbfdde6f73e267ea7769b9d8c12e0a42",
+  "bytes": 146522262,
+  "sha256": "d0628d7df4cbd8102da18a130372c2d8286c180bfb89b9060d991e8e8f91c0a1",
   "zip_crc_validation_passed": true,
-  "version": "speed-9",
-  "files": 2819,
+  "version": "money-10",
+  "files": 2820,
   "patch": {
     "file": "downloads/Sims3-Performance-Update.zip",
-    "bytes": 54942,
-    "sha256": "a64e44cd21267f28556372a9a6478718b82ea16769322fa472ddd5c1f8dbbfc7",
+    "bytes": 57003,
+    "sha256": "f1da3f50fee6288d080d029c5c0904a6cda25757497e4cbf892f982b134f43bc",
     "zip_crc_validation_passed": true
   },
   "legacy_patch_urls_are_current_aliases": true,
@@ -16,7 +16,7 @@
   "wine_10_validated": true,
   "audio_implemented": true,
   "full_gameplay_validated": false,
-  "runtime_tests_passed": 35,
+  "runtime_tests_passed": 37,
   "manual_fishing_validated": false,
   "fishing_freeze_fix_verified": false
 }

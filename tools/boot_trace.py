@@ -32,6 +32,7 @@ from text_input import TextInput, TextInputUnsupported
 from fast_services import FastServices
 from guest_memory import GuestMemory, ArmRegisters
 from audio import Audio
+from money_cheat import MoneyCheat
 
 
 class UnsupportedImport(RuntimeError):
@@ -208,6 +209,7 @@ class Runtime:
                 address = self.fast_services.entries.get(image.imports[index])
                 if address is not None:
                     self.cpu.mem_write(image.base + offset, struct.pack("<I", address))
+        self.money_cheat = MoneyCheat(self)
 
     @property
     def current_heap(self):
@@ -225,12 +227,14 @@ class Runtime:
         self.api_registers.write(UC_ARM_REG_CPSR, (flags & ~0x20) | (0x20 if address & 1 else 0))
         self.api_registers.write(UC_ARM_REG_PC, address & ~1)
 
-    def invoke_callbacks(self, requests, result=0):
+    def invoke_callbacks(self, requests, result=0, owned_payloads=None, on_complete=None):
         if not requests:
             self.api_registers.write(UC_ARM_REG_R0, result)
             return
         state = {"remaining": collections.deque(requests),
-                 "payloads": {request[1][0] for request in requests if request[1][0]},
+                 "payloads": ({request[1][0] for request in requests if request[1][0]}
+                              if owned_payloads is None else set(owned_payloads)),
+                 "on_complete": on_complete,
                  "lr": self.cpu.reg_read(UC_ARM_REG_LR),
                  "sp": self.cpu.reg_read(UC_ARM_REG_SP), "result": result}
         self.callback_stack.append(state)
@@ -253,6 +257,8 @@ class Runtime:
             self.api_registers.write(UC_ARM_REG_R0, state["result"])
             self.api_registers.write(UC_ARM_REG_LR, state["lr"])
             self.jump(state["lr"])
+            if state["on_complete"] is not None:
+                state["on_complete"]()
 
     def argument(self, index):
         if index < 4:
@@ -478,6 +484,8 @@ class Runtime:
             if self.window:
                 self.window.pump()
             requests = self.input.poll_device() + self.input.poll_keyboard()
+            if not requests and self.money_cheat.start_pending():
+                return
             if not requests and self.threads.start_pending():
                 return
             self.invoke_callbacks(requests)
@@ -760,6 +768,7 @@ class Runtime:
                         break
                 self.slice_deadline_ns = time.monotonic_ns() + 100_000_000
                 self.cpu.emu_start(address, self.API + 0xFFFC, timeout=100_000)
+                self.money_cheat.show_pending_notice()
                 pc = self.cpu.reg_read(UC_ARM_REG_PC)
                 if pc == self.API + 0xFFFC:
                     self.shutdown_completed = True
@@ -826,6 +835,7 @@ class Runtime:
                            "last_failed_allocation_bytes":self.last_failed_allocation},
                 "playable": False, "windows_executable_built": False}
         report["audio"] = self.audio.report()
+        report["money_cheat"] = self.money_cheat.report()
         self.audio.close()
         report["native_service_counts"] = self.fast_services.counts() if hasattr(self, "fast_services") else {}
         report["input"] = {"events_dispatched": self.input.events_dispatched,

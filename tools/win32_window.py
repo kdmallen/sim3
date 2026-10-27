@@ -257,12 +257,21 @@ class Win32Window:
             "Arrow keys / WASD: tilt the phone.\n"
             "F4 / F6 (hold): gradually tilt left / right; release to level.\n"
             "F5: shake the phone (hold for continuous shaking).\n"
+            "Gardening Tips open + F5: receive 1,000 Simoleons per press.\n"
             "F7: quick upward jerk for fishing.\n"
             "F3: show or hide frame rate.\n"
             "F8: cycle game speed 1x / 2x / 4x / 6x / 8x / 10x / 12x (limited by your computer).\n"
             "Escape: back.\n\n"
             "Name prompts: type normally; Enter confirms, Escape cancels.\n"
             "Ctrl+C / Ctrl+V work in the text prompt.", "The Sims 3 — Controls", 0)
+        if self.runtime.graphics:
+            self.runtime.graphics.reset_frame_timing()
+
+    def show_money_reward(self, added, balance):
+        text = (f"§{added:,} added.\nBalance: §{balance:,}" if added else
+                f"Balance limit reached: §{balance:,}")
+        self.bind(self.user, "MessageBoxW", C.c_int32, C.c_void_p, C.c_wchar_p,
+                  C.c_wchar_p, C.c_uint32)(self.handle, text, "Gardening Tips", 0)
         if self.runtime.graphics:
             self.runtime.graphics.reset_frame_timing()
 

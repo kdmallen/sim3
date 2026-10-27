@@ -1,0 +1,51 @@
+{
+  "version": "money-10",
+  "previous_version": "speed-9",
+  "behavior": {
+    "trigger": "New F5 press while Gardening Tips popup is open",
+    "amount": 1000,
+    "original_balance_cap": 999999,
+    "confirmation": true,
+    "repeated_presses": true,
+    "held_key_rewards": 1,
+    "ordinary_f5_sensor_unchanged": true,
+    "save": "Original Save and Continue / Save and Quit; no custom save format"
+  },
+  "implementation": {
+    "gardening_entry_offset": "0x8d9a4",
+    "help_state_offset": "0xf8",
+    "gardening_popup_title_id": "0x860",
+    "profile_pointer_offset": "0x24",
+    "original_money_getter_offset": "0xc1630",
+    "profile_money_offset": "0x790",
+    "original_award_function_offset": "0xc4b24",
+    "activation_guard": "Instruction fingerprints plus help/popup/profile identity and active popup checks",
+    "guest_call": "Existing callback return bridge with no owned profile payload; original award function updates balance and achievements",
+    "confirmation": "Native modal UI deferred until outside emu_start"
+  },
+  "tests": {
+    "linux_passed": 37,
+    "windows_under_wine_passed": 37,
+    "synthetic_guest_call_return_stack_and_profile_ownership": true,
+    "closed_or_unrelated_popups_rejected": true,
+    "no_current_sim_rejected": true,
+    "real_game_starting_balance": 670,
+    "real_game_first_shake_balance": 1670,
+    "real_game_second_shake_balance": 2670,
+    "real_game_saved_balance": 2670,
+    "fresh_launch_original_getter_values": [
+      2670
+    ],
+    "native_key_auto_repeat_does_not_repeat_reward": true,
+    "f5_outside_gardening_does_not_award": true,
+    "real_game_award_run_status": "user_closed",
+    "real_game_award_run_error": null,
+    "real_game_reload_run_status": "user_closed",
+    "real_game_reload_run_error": null,
+    "real_game_reload_shutdown_completed": true
+  },
+  "limitations": [
+    "Physical Windows 11 not tested; development tests use Wine 10",
+    "No fix claimed for the prior 12x travel crash or town-map FPS drop"
+  ]
+}

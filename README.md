@@ -42,6 +42,14 @@ If needed, Ctrl+wheel over the slider's middle calibrates its position.
 | F3 | Show or hide FPS |
 | F8 | Cycle 1× / 2× / 4× / 6× / 8× / 10× / 12× game speed |
 
+Open **Help & About**, scroll down, and open **Gardening Tips**. Press **F5**
+to shake and receive **§1,000**, with a confirmation showing the new balance.
+Each new press can repeat the reward; holding F5 gives one reward. F5 retains
+its normal phone-shake behavior elsewhere. The game caps money at §999,999.
+Use the game's normal **Save and Continue** or **Save and Quit** to retain it.
+This calls the original game's award function and uses its normal save format.
+See [money-cheat validation](research/money-cheat-update.json).
+
 F8 accelerates the game's monotonic clock and requested yield delays, with no
 clock jump when switching speed. The title shows the selected multiplier; restarting resets to 1×.
 Actual acceleration depends on CPU headroom. Menus and animations accelerate too;
@@ -76,7 +84,7 @@ A game fault reports its real error and writes a log; unknown platform APIs stop
 - Rendered the EA splash, Sims splash, language selection, and 3D title/agreement scene using real GLES draws.
 - Executed pointer callbacks in the original ARM game; supplied isolated save-file services.
 - Built a native PE x64 GUI entry point with bundled Python 3.13.17, Unicorn 2.1.4, and ANGLE.
-- Passed 35 ABI/rendering regression tests on Linux and the packaged Windows Python under Wine.
+- Passed 37 ABI/rendering regression tests on Linux and the packaged Windows Python under Wine.
 - Passed native Win32 mouse, keyboard tilt, F5 shake, and orderly window-close smoke checks under Wine.
 - Played the original MP3 music and PCM effects through WinMM/MCI under Wine;
   native audio tests cover overlapping effects, looping, volume, pause/resume, and stop.

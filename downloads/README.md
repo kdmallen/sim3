@@ -1,11 +1,16 @@
 # Windows downloads
 
 [Download Sims3-Performance-Update.zip](https://github.com/kdmallen/sim3/blob/main/downloads/Sims3-Performance-Update.zip)
-(54,942 bytes). Click **Download raw file**.
+(57,003 bytes). Click **Download raw file**.
 Close the game, copy all ZIP contents beside **Sims3.exe**, replace files and
 merge tools folders, then restart. Saves remain in AppData. This is cumulative:
 sound, background play, smooth F4/F6 tilt, and earlier fixes are included.
 Earlier patch URLs also supply this latest update.
+
+**Money cheat:** open **Help & About → Gardening Tips**, then press **F5**.
+Each new press adds **1,000 Simoleons**, up to the original 999,999 balance cap,
+and shows a confirmation. Holding F5 gives one reward. Save normally to retain
+the balance. F5 retains phone shake in other screens.
 
 **F8 cycles 1x / 2x / 4x / 6x / 8x / 10x / 12x game speed**, displayed in the title. Restarting resets
 speed to 1x. Actual acceleration depends on CPU headroom. Menus and animations
@@ -18,7 +23,7 @@ Scalar ARM register writes reuse native call buffers; graphics and allocation
 services take shorter dispatch paths. A native free(NULL) helper avoids a host
 callback for a no-op. Non-null frees retain allocator checks.
 
-35 ABI/rendering tests pass on Linux and the packaged Windows runtime under
+37 ABI/rendering tests pass on Linux and the packaged Windows runtime under
 Wine, including live vertex rewrites, buffer transitions, timer continuity and
 64-bit returns, and checked allocator fallback. Physical Windows FPS and full
 crowded-house gameplay remain unverified. See research/performance-update.json
@@ -32,6 +37,6 @@ No separate emulator or Python install is needed. The full ZIP uses Git LFS;
 automatic repository source ZIPs can contain pointers. EA's agreement remains
 for you to review and accept.
 
-SHA256 full: `3ed733c46b7988266be48d7a976b6333dbfdde6f73e267ea7769b9d8c12e0a42`
+SHA256 full: `d0628d7df4cbd8102da18a130372c2d8286c180bfb89b9060d991e8e8f91c0a1`
 
-SHA256 patch (and earlier aliases): `a64e44cd21267f28556372a9a6478718b82ea16769322fa472ddd5c1f8dbbfc7`
+SHA256 patch (and earlier aliases): `f1da3f50fee6288d080d029c5c0904a6cda25757497e4cbf892f982b134f43bc`

@@ -72,6 +72,7 @@ class InputDevice:
         self.pointer_events.append((0, struct.pack("<4i", button, int(pressed), self.x, self.y)))
 
     def key(self, key, pressed):
+        was_held = key in self.held_keys
         if key in (115, 117):
             self.advance_tilt(self.clock())  # Integrate the previous held state first.
             self.tilt_sample = None
@@ -82,6 +83,9 @@ class InputDevice:
             self.held_keys.discard(key)
         if pressed and key == 116:  # F5: repeatable phone shake.
             self.shake_started = self.clock()
+            cheat = getattr(self.runtime, "money_cheat", None)
+            if not was_held and cheat is not None:
+                cheat.shake()
         if pressed and key == 118:  # F7: quick upward jerk; F6 is right tilt.
             self.jerk_started = self.clock()
         if key in (115, 117, 118):
