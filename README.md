@@ -13,7 +13,7 @@ No acceptance is supplied or bypassed by the runtime.
 
 ## Running the Windows build
 
-[Already have a build? Download the small rendering update](https://github.com/kdmallen/sim3/blob/main/downloads/Sims3-Render-Update.zip).
+[Already have a build? Download the small performance / fast-forward update](https://github.com/kdmallen/sim3/blob/main/downloads/Sims3-Performance-Update.zip).
 Close the game, extract the update into the folder containing your existing
 `Sims3.exe`, and replace the matching files. Start `Sims3.exe` again. Saves stay
 in AppData. Use **Download raw file** on the GitHub file page.
@@ -40,6 +40,21 @@ If needed, Ctrl+wheel over the slider's middle calibrates its position.
 | Escape | Back |
 | F1 | Controls help |
 | F3 | Show or hide FPS |
+| F8 | Cycle 1× / 2× / 4× game speed |
+
+F8 accelerates the game's monotonic clock and requested yield delays, with no
+clock jump when switching speed. The title shows 2×/4×; restarting resets to 1×.
+Actual acceleration depends on CPU headroom. Menus and animations accelerate too;
+use 1× for precise minigames. Music, phone input, real UTC, and diagnostics keep
+real time. Faster game speed does not create additional rendering capacity.
+
+The performance update reduces repeated graphics pointer setup and ARM/host
+service overhead. Vertex bounds are checked on each draw and animations read
+live memory. Native no-op handling of `free(NULL)` avoids needless host calls;
+non-null frees retain allocator validation. Physical Windows town-map and
+crowded-house FPS remain unverified. A Wine comparison at 1× measured 14.81
+versus 14.88 FPS in town: no meaningful average improvement. The town-map drop
+is not confirmed fixed; see [development evidence](research/performance-update.json).
 
 Saves, cache, `player.log`, and `last-run.json` live in
 `%LOCALAPPDATA%\Sims3Mobile`. No administrator access is required.
@@ -61,7 +76,7 @@ A game fault reports its real error and writes a log; unknown platform APIs stop
 - Rendered the EA splash, Sims splash, language selection, and 3D title/agreement scene using real GLES draws.
 - Executed pointer callbacks in the original ARM game; supplied isolated save-file services.
 - Built a native PE x64 GUI entry point with bundled Python 3.13.17, Unicorn 2.1.4, and ANGLE.
-- Passed 31 ABI/rendering regression tests on Linux and the packaged Windows Python under Wine.
+- Passed 35 ABI/rendering regression tests on Linux and the packaged Windows Python under Wine.
 - Passed native Win32 mouse, keyboard tilt, F5 shake, and orderly window-close smoke checks under Wine.
 - Played the original MP3 music and PCM effects through WinMM/MCI under Wine;
   native audio tests cover overlapping effects, looping, volume, pause/resume, and stop.

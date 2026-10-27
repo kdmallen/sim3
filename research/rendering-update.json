@@ -28,5 +28,6 @@
     "draws": 1831,
     "index_cache_hits": 294,
     "index_cache_bytes": 348
-  }
+  },
+  "superseded_by": "performance-update.json"
 }

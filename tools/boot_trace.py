@@ -13,6 +13,7 @@ import lzma
 from pathlib import Path
 import struct
 import time
+from game_clock import GameClock
 import uuid
 import zipfile
 import zlib
@@ -147,9 +148,9 @@ class Runtime:
         for offset, index in image.references:
             self.cpu.mem_write(image.base + offset,
                                struct.pack("<I", self.API + index * 16))
-        self.cpu.reg_write(UC_ARM_REG_CPSR, 0x10)
-        self.cpu.reg_write(UC_ARM_REG_SP, self.STACK + self.STACK_BYTES - 16)
-        self.cpu.reg_write(UC_ARM_REG_LR, self.API + 0xFFFC)
+        self.api_registers.write(UC_ARM_REG_CPSR, 0x10)
+        self.api_registers.write(UC_ARM_REG_SP, self.STACK + self.STACK_BYTES - 16)
+        self.api_registers.write(UC_ARM_REG_LR, self.API + 0xFFFC)
         self.cpu.hook_add(UC_HOOK_CODE, self.api_call,
                           begin=self.API, end=self.API + 0xFFFF)
         self.trace = collections.deque(maxlen=20000)
@@ -167,6 +168,7 @@ class Runtime:
         self.config = config or {}
         self.empty_string = self.allocate(1)
         self.started_ns = time.monotonic_ns()
+        self.game_clock = GameClock()
         self.callbacks = {}
         self.surface_width = 800
         self.surface_height = 480
@@ -220,12 +222,12 @@ class Runtime:
     def jump(self, address):
         self._api_control_changed = True
         flags = self.cpu.reg_read(UC_ARM_REG_CPSR)
-        self.cpu.reg_write(UC_ARM_REG_CPSR, (flags & ~0x20) | (0x20 if address & 1 else 0))
-        self.cpu.reg_write(UC_ARM_REG_PC, address & ~1)
+        self.api_registers.write(UC_ARM_REG_CPSR, (flags & ~0x20) | (0x20 if address & 1 else 0))
+        self.api_registers.write(UC_ARM_REG_PC, address & ~1)
 
     def invoke_callbacks(self, requests, result=0):
         if not requests:
-            self.cpu.reg_write(UC_ARM_REG_R0, result)
+            self.api_registers.write(UC_ARM_REG_R0, result)
             return
         state = {"remaining": collections.deque(requests),
                  "payloads": {request[1][0] for request in requests if request[1][0]},
@@ -241,15 +243,15 @@ class Runtime:
         if state["remaining"]:
             function, arguments = state["remaining"].popleft()
             for index, register in enumerate((UC_ARM_REG_R0, UC_ARM_REG_R1, UC_ARM_REG_R2, UC_ARM_REG_R3)):
-                self.cpu.reg_write(register, arguments[index] if index < len(arguments) else 0)
-            self.cpu.reg_write(UC_ARM_REG_LR, self.import_trap("__resume_callback"))
+                self.api_registers.write(register, arguments[index] if index < len(arguments) else 0)
+            self.api_registers.write(UC_ARM_REG_LR, self.import_trap("__resume_callback"))
             self.jump(function)
         else:
             self.callback_stack.pop()
             for pointer in state["payloads"]:
                 self.release(pointer)
-            self.cpu.reg_write(UC_ARM_REG_R0, state["result"])
-            self.cpu.reg_write(UC_ARM_REG_LR, state["lr"])
+            self.api_registers.write(UC_ARM_REG_R0, state["result"])
+            self.api_registers.write(UC_ARM_REG_LR, state["lr"])
             self.jump(state["lr"])
 
     def argument(self, index):
@@ -338,7 +340,7 @@ class Runtime:
                 if registers[4] & 1:
                     self.jump(registers[4])
                 else:
-                    cpu.reg_write(UC_ARM_REG_PC, registers[4])
+                    self.api_registers.write(UC_ARM_REG_PC, registers[4])
         finally:
             self._api_args = None
         # A slow host callback can outlast Unicorn's timer. Apply the deadline
@@ -369,52 +371,6 @@ class Runtime:
         self.api_call_count += 1
         if self.api_call_limit is not None and self.api_call_count > self.api_call_limit:
             raise RuntimeError("API call budget exceeded")
-        if name.startswith(("s3eAudio", "s3eSound")):
-            cpu.reg_write(UC_ARM_REG_R0, self.audio.dispatch(name) & 0xFFFFFFFF)
-            return
-        if name.startswith("thread_slot_"):
-            try:
-                result = self.threads.dispatch(name)
-            except ThreadUnsupported as exc:
-                self.status = "unsupported_import"
-                raise UnsupportedImport(str(exc)) from exc
-            if result is not None:
-                cpu.reg_write(UC_ARM_REG_R0, result & 0xFFFFFFFF)
-            return
-        if name.startswith("osread_slot_"):
-            try:
-                result = self.text_input.dispatch(name)
-            except TextInputUnsupported as exc:
-                self.status = "unsupported_import"
-                raise UnsupportedImport(str(exc)) from exc
-            cpu.reg_write(UC_ARM_REG_R0, result)
-            return
-        if name.startswith(("s3eFile", "vfs_slot_")):
-            try:
-                result = self.filesystem.dispatch(name)
-            except FileUnsupported as exc:
-                self.status = "unsupported_import"
-                raise UnsupportedImport(str(exc)) from exc
-            if result is not None:
-                cpu.reg_write(UC_ARM_REG_R0, result & 0xFFFFFFFF)
-                if name == "s3eFileGetFileInt":
-                    cpu.reg_write(UC_ARM_REG_R1, (result >> 32) & 0xFFFFFFFF)
-            return
-        if name == "s3eAndroidJNIGetVM" or name.startswith(("jni_", "jvm_")):
-            if self.jni is None:
-                self.jni = JniBridge(self)
-            try:
-                result = self.jni.vm if name == "s3eAndroidJNIGetVM" else self.jni.dispatch(name)
-            except JniUnsupported as exc:
-                self.status = "unsupported_import"
-                raise UnsupportedImport(str(exc)) from exc
-            if result is not None:
-                cpu.reg_write(UC_ARM_REG_R0, result)
-            return
-        if name in ("s3eDebugAssertShow", "s3eDebugErrorShow"):
-            message = self.string(args[1])
-            record["message"] = message
-            raise RuntimeError("Guest assertion/error: " + message)
         if name.startswith(("gl", "egl")):
             try:
                 result = self.get_graphics().dispatch(name)
@@ -422,262 +378,10 @@ class Runtime:
                 self.status = "unsupported_import"
                 raise UnsupportedImport(str(exc)) from exc
             if result is not None:
-                cpu.reg_write(UC_ARM_REG_R0, int(result) & 0xFFFFFFFF)
+                self.api_registers.write(UC_ARM_REG_R0, int(result) & 0xFFFFFFFF)
             return
-        if name == "s3eGLGetInt" and args[0] in (0, 2):
-            self.get_graphics()
-            cpu.reg_write(UC_ARM_REG_R0, 0x200 if args[0] == 0 else 1)
-            return
-        if name == "s3eGLGetNativeWindow":
-            # A virtual native-window token, translated to a real pbuffer by
-            # eglCreateWindowSurface in the offscreen development backend.
-            self.get_graphics()
-            cpu.reg_write(UC_ARM_REG_R0, 1)
-            return
-        if name == "s3eSurfaceShow":
-            self.get_graphics().capture_frame(self.get_graphics().frames + 1)
-            self.get_graphics().present()
-            cpu.reg_write(UC_ARM_REG_R0, 0)
-            return
-        if name == "s3eDeviceYield":
-            self.write_diagnostics()
-            # The high bit is an SDK polling flag; the lower bits are delay ms.
-            milliseconds = args[0] & 0x7FFFFFFF
-            if milliseconds > 5000:
-                raise UnsupportedImport("Device yield exceeds the bounded probe's wait budget")
-            time.sleep(milliseconds / 1000)
-            if self.window:
-                self.window.pump()
-            requests = self.input.poll_device() + self.input.poll_keyboard()
-            if not requests and self.threads.start_pending():
-                return
-            self.invoke_callbacks(requests)
-            return
-        if name == "s3eDeviceCheckQuitRequest":
-            cpu.reg_write(UC_ARM_REG_R0, int(self.quit_requested))
-            return
-        if name == "s3eDeviceRequestQuit":
-            self.quit_requested = True
-            cpu.reg_write(UC_ARM_REG_R0, 0)
-            return
-        if name == "s3eDeviceAbort":
-            raise RuntimeError("Guest requested process abort; see preceding debug messages")
-        if name in ("s3eAccelerometerStart", "s3eAccelerometerStop"):
-            available = self.input.accelerometer_available
-            self.input.accelerometer_active = available and name.endswith("Start")
-            record["result"] = "virtual_sensor" if available else "sensor_unavailable"
-            cpu.reg_write(UC_ARM_REG_R0, 0 if available else 1)
-            return
-        if name in ("s3eAccelerometerGetX", "s3eAccelerometerGetY", "s3eAccelerometerGetZ"):
-            cpu.reg_write(UC_ARM_REG_R0, self.input.acceleration(name[-1]) & 0xFFFFFFFF)
-            return
-        if name == "s3eAccelerometerGetInt" and args[0] == 0:
-            cpu.reg_write(UC_ARM_REG_R0, int(self.input.accelerometer_available))
-            return
-        if name in ("s3ePointerGetX", "s3ePointerGetY"):
-            cpu.reg_write(UC_ARM_REG_R0, (self.input.x if name.endswith("X") else self.input.y) & 0xFFFFFFFF)
-            return
-        if name == "s3ePointerUpdate":
-            if self.window:
-                self.window.pump()
-            self.invoke_callbacks(self.input.poll_pointer())
-            return
-        if name == "s3eKeyboardGetState":
-            cpu.reg_write(UC_ARM_REG_R0, self.input.key_state(args[0]))
-            return
-        if name == "s3eCompressionDecomp" and self.argument(4) == 2:
-            source, compressed_bytes, destination_pointer, size_pointer = args
-            destination = struct.unpack("<I", cpu.mem_read(destination_pointer, 4))[0]
-            capacity = struct.unpack("<I", cpu.mem_read(size_pointer, 4))[0]
-            if not destination:
-                raise UnsupportedImport("Compression output needs a guest allocator callback")
-            if capacity > 64 * 1024 * 1024 or compressed_bytes > 64 * 1024 * 1024:
-                raise ValueError("Compression transfer exceeds budget")
-            decoder = zlib.decompressobj()
-            content = decoder.decompress(bytes(cpu.mem_read(source, compressed_bytes)), capacity + 1)
-            if not decoder.eof or decoder.unused_data or len(content) > capacity:
-                raise ValueError("Incomplete/oversized zlib stream")
-            cpu.mem_write(destination, content)
-            cpu.mem_write(size_pointer, struct.pack("<I", len(content)))
-            record["decoded_bytes"] = len(content)
-            record["checksum_validated"] = True
-            cpu.reg_write(UC_ARM_REG_R0, 0)
-            return
-        if name == "s3ePointerSetInt" and 5 <= args[0] <= 12:
-            # SDK-owned pointer transform/state fields. Property 5 is byte-sized;
-            # the remaining fields are full words in the original runtime.
-            self.pointer_properties[args[0]] = args[1] & (0xFF if args[0] == 5 else 0xFFFFFFFF)
-            cpu.reg_write(UC_ARM_REG_R0, 0)
-            return
-        if name == "s3eKeyboardSetInt" and args[0] in (4, 6):
-            valid = args[0] != 4 or args[1] <= 1
-            if valid:
-                self.keyboard_properties[args[0]] = bool(args[1])
-            cpu.reg_write(UC_ARM_REG_R0, 0 if valid else 1)
-            return
-        if name in ("s3eDebugOutputString", "s3eDebugTraceLine"):
-            record["message"] = self.string(args[0])
-            print(f"{name}: {record['message']}", flush=True)
-            cpu.reg_write(UC_ARM_REG_R0, 0)
-            return
-        if name == "s3eExtGetHash":
-            if args[0] == TextInput.HASH and args[2] == 16:
-                functions = [self.import_trap("osread_slot_" + str(index)) for index in range(4)]
-                cpu.mem_write(args[1], struct.pack("<4I", *functions))
-                record["result"] = "provided_native_text_entry"
-                cpu.reg_write(UC_ARM_REG_R0, 0)
-                return
-            if args[0] == 3423291944 and args[2] == 80:
-                functions = [self.import_trap("thread_slot_" + str(index)) for index in range(20)]
-                cpu.mem_write(args[1], struct.pack("<20I", *functions))
-                record["result"] = "provided_single_thread_sync_services"
-                cpu.reg_write(UC_ARM_REG_R0, 0)
-                return
-            if args[0] == 2750204658 and args[2] == 4:
-                cpu.mem_write(args[1], struct.pack("<I", self.import_trap("s3eAndroidJNIGetVM")))
-                record["result"] = "provided_s3eAndroidJNI"
-                cpu.reg_write(UC_ARM_REG_R0, 0)
-                return
-            if args[0] == 401902751 and args[2] == 16:
-                functions = [self.import_trap("vfs_slot_" + str(index)) for index in range(4)]
-                cpu.mem_write(args[1], struct.pack("<4I", *functions))
-                record["result"] = "provided_vfs_research_interface"
-                cpu.reg_write(UC_ARM_REG_R0, 0)
-                return
-            # The SDK returns S3E_RESULT_ERROR (1) when an extension is absent.
-            # Leave the caller's output table untouched, matching that failure.
-            record["result"] = "extension_not_available"
-            cpu.reg_write(UC_ARM_REG_R0, 1)
-            return
-        if name == "s3eMemoryGetInt" and args[0] == 0:
-            # SDK property 0 reads the selected heap index.
-            cpu.reg_write(UC_ARM_REG_R0, self.current_heap)
-            return
-        if name == "s3eMemorySetInt" and args[0] == 0 and args[1] <= 7:
-            self.current_heap = args[1]
-            cpu.reg_write(UC_ARM_REG_R0, 0)
-            return
-        if name == "s3eMemorySetUserMemMgr":
-            # Base allocation APIs bypass this table. Keep the registered
-            # callback addresses for future platform-owned guest allocations.
-            if not args[0]:
-                self.user_memory_managers.pop(self.current_heap, None)
-                result = 0
-            else:
-                callbacks = struct.unpack("<3I", cpu.mem_read(args[0], 12))
-                result = 0 if all(callbacks) else 1
-                if result == 0:
-                    self.user_memory_managers[self.current_heap] = callbacks
-            cpu.reg_write(UC_ARM_REG_R0, result)
-            return
-        if name in ("s3eConfigGetString", "s3eConfigGetInt"):
-            section, key = self.string(args[0]), self.string(args[1])
-            record["section"], record["key"] = section, key
-            value = self.config.get(((section or "s3e").casefold(), key.casefold()))
-            result = 1
-            if value is not None and args[2]:
-                if name == "s3eConfigGetString":
-                    encoded = value.encode() + b"\0"
-                    if len(encoded) > 128:
-                        raise ValueError("ICF string exceeds SDK buffer limit")
-                    cpu.mem_write(args[2], encoded)
-                    result = 0
-                else:
-                    try:
-                        number = int(value, 0)
-                    except ValueError:
-                        pass
-                    else:
-                        cpu.mem_write(args[2], struct.pack("<I", number & 0xFFFFFFFF))
-                        result = 0
-            record["result"] = result
-            record["value"] = value
-            cpu.reg_write(UC_ARM_REG_R0, result)
-            return
-        if name == "s3eDeviceGetString" and args[0] in (31, 36, 37):
-            # Optional startup date/time text: the guest checks for an empty
-            # result and has a fallback. No device text is available here.
-            record["result"] = "property_not_available"
-            cpu.reg_write(UC_ARM_REG_R0, self.empty_string)
-            return
-        if name == "s3eDeviceGetInt" and args[0] in (0, 1, 8):
-            # Values verified against the supplied Android SDK runtime:
-            # logical OS ANDROID = 18; ARMv5TEJ architecture = 4. These describe
-            # the guest compatibility environment, not the host OS/CPU.
-            value = {0: 18, 1: 0x3E80, 8: 4}[args[0]]
-            record["result"] = value
-            cpu.reg_write(UC_ARM_REG_R0, value)
-            return
-        if name == "s3eDeviceSetInt" and args[0] == 15:
-            # The supplied SDK's 0x79a80 routine accepts only property 15,
-            # stores its low byte in device state, and returns success. The
-            # original game writes zero while returning from its entry point.
-            self.device_flags[15] = args[1] & 0xFF
-            cpu.reg_write(UC_ARM_REG_R0, 0)
-            return
-        if name in ("s3eTimerGetMs", "s3eTimerGetUTC"):
-            value = ((time.monotonic_ns() - self.started_ns) // 1_000_000
-                     if name == "s3eTimerGetMs" else time.time_ns() // 1_000_000)
-            cpu.reg_write(UC_ARM_REG_R0, value & 0xFFFFFFFF)
-            cpu.reg_write(UC_ARM_REG_R1, value >> 32)
-            return
-        if name == "s3eTimerGetLocaltimeOffset":
-            # The research runtime deliberately uses UTC.
-            cpu.reg_write(UC_ARM_REG_R0, 0)
-            return
-        if name == "s3eSurfaceGetInt" and args[0] in (0, 1, 2, 3, 4, 5, 11):
-            # Virtual display dimensions for a headless startup probe. No
-            # framebuffer or graphics context is created by this query.
-            # Property 11 is the physical surface orientation (0..3), used
-            # by IwGx's width/height rotation logic, not a DPI measurement.
-            value = {0: self.surface_width, 1: self.surface_height,
-                     2: self.surface_pitch, 3: self.surface_format,
-                     4: self.surface_width, 5: self.surface_height, 11: 0}[args[0]]
-            record["result"] = value
-            cpu.reg_write(UC_ARM_REG_R0, value)
-            return
-        if name == "s3eSurfacePtr":
-            cpu.reg_write(UC_ARM_REG_R0, self.surface_buffer)
-            return
-        if name == "s3eSurfaceSetup" and args[0] in (0x422, 0x426, 0x435, 0x447):
-            pixel_format, pitch, buffer, rotation = args
-            pixel_bytes = (pixel_format & 0x70) >> 4
-            if rotation not in (0, 4):
-                raise UnsupportedImport("Rotated software surfaces are not implemented")
-            pitch = pitch or self.surface_width * pixel_bytes
-            result = 1
-            if pitch >= self.surface_width * pixel_bytes:
-                required = pitch * self.surface_height
-                if required > 32 * 1024 * 1024:
-                    raise ValueError("Surface exceeds memory budget")
-                buffer = buffer or self.allocate(required)
-                if buffer:
-                    cpu.mem_read(buffer, required)
-                    self.surface_pitch = pitch
-                    self.surface_format = pixel_format
-                    self.surface_buffer = buffer
-                    result = 0
-            cpu.reg_write(UC_ARM_REG_R0, result)
-            return
-        families = ("s3eSurface", "s3eDevice", "s3ePointer", "s3eKeyboard", "s3eGL")
-        for family in families:
-            if name == family + "Register":
-                event, callback, user = args[:3]
-                key = (family, event, callback)
-                result = 1 if not callback or key in self.callbacks else 0
-                if result == 0:
-                    self.callbacks[key] = user
-                record["result"] = result
-                cpu.reg_write(UC_ARM_REG_R0, result)
-                return
-            if name == family + "UnRegister":
-                key = (family, args[0], args[1])
-                result = 0 if key in self.callbacks else 1
-                self.callbacks.pop(key, None)
-                cpu.reg_write(UC_ARM_REG_R0, result)
-                return
         if name == "s3eMallocBase":
-            cpu.reg_write(UC_ARM_REG_R0, self.allocate(args[0]))
+            self.api_registers.write(UC_ARM_REG_R0, self.allocate(args[0]))
             return
         if name == "s3eFreeBase":
             self.release(args[0])
@@ -701,8 +405,306 @@ class Runtime:
                     count = min(size, self.allocations[pointer])
                     cpu.mem_write(result, bytes(cpu.mem_read(pointer, count)))
                     self.release(pointer)
-            cpu.reg_write(UC_ARM_REG_R0, result)
+            self.api_registers.write(UC_ARM_REG_R0, result)
             return
+        if name.startswith(("s3eAudio", "s3eSound")):
+            self.api_registers.write(UC_ARM_REG_R0, self.audio.dispatch(name) & 0xFFFFFFFF)
+            return
+        if name.startswith("thread_slot_"):
+            try:
+                result = self.threads.dispatch(name)
+            except ThreadUnsupported as exc:
+                self.status = "unsupported_import"
+                raise UnsupportedImport(str(exc)) from exc
+            if result is not None:
+                self.api_registers.write(UC_ARM_REG_R0, result & 0xFFFFFFFF)
+            return
+        if name.startswith("osread_slot_"):
+            try:
+                result = self.text_input.dispatch(name)
+            except TextInputUnsupported as exc:
+                self.status = "unsupported_import"
+                raise UnsupportedImport(str(exc)) from exc
+            self.api_registers.write(UC_ARM_REG_R0, result)
+            return
+        if name.startswith(("s3eFile", "vfs_slot_")):
+            try:
+                result = self.filesystem.dispatch(name)
+            except FileUnsupported as exc:
+                self.status = "unsupported_import"
+                raise UnsupportedImport(str(exc)) from exc
+            if result is not None:
+                self.api_registers.write(UC_ARM_REG_R0, result & 0xFFFFFFFF)
+                if name == "s3eFileGetFileInt":
+                    self.api_registers.write(UC_ARM_REG_R1, (result >> 32) & 0xFFFFFFFF)
+            return
+        if name == "s3eAndroidJNIGetVM" or name.startswith(("jni_", "jvm_")):
+            if self.jni is None:
+                self.jni = JniBridge(self)
+            try:
+                result = self.jni.vm if name == "s3eAndroidJNIGetVM" else self.jni.dispatch(name)
+            except JniUnsupported as exc:
+                self.status = "unsupported_import"
+                raise UnsupportedImport(str(exc)) from exc
+            if result is not None:
+                self.api_registers.write(UC_ARM_REG_R0, result)
+            return
+        if name in ("s3eDebugAssertShow", "s3eDebugErrorShow"):
+            message = self.string(args[1])
+            record["message"] = message
+            raise RuntimeError("Guest assertion/error: " + message)
+        if name == "s3eGLGetInt" and args[0] in (0, 2):
+            self.get_graphics()
+            self.api_registers.write(UC_ARM_REG_R0, 0x200 if args[0] == 0 else 1)
+            return
+        if name == "s3eGLGetNativeWindow":
+            # A virtual native-window token, translated to a real pbuffer by
+            # eglCreateWindowSurface in the offscreen development backend.
+            self.get_graphics()
+            self.api_registers.write(UC_ARM_REG_R0, 1)
+            return
+        if name == "s3eSurfaceShow":
+            self.get_graphics().capture_frame(self.get_graphics().frames + 1)
+            self.get_graphics().present()
+            self.api_registers.write(UC_ARM_REG_R0, 0)
+            return
+        if name == "s3eDeviceYield":
+            self.write_diagnostics()
+            # The high bit is an SDK polling flag; the lower bits are delay ms.
+            milliseconds = args[0] & 0x7FFFFFFF
+            if milliseconds > 5000:
+                raise UnsupportedImport("Device yield exceeds the bounded probe's wait budget")
+            time.sleep(milliseconds / (1000 * self.game_clock.speed))
+            if self.window:
+                self.window.pump()
+            requests = self.input.poll_device() + self.input.poll_keyboard()
+            if not requests and self.threads.start_pending():
+                return
+            self.invoke_callbacks(requests)
+            return
+        if name == "s3eDeviceCheckQuitRequest":
+            self.api_registers.write(UC_ARM_REG_R0, int(self.quit_requested))
+            return
+        if name == "s3eDeviceRequestQuit":
+            self.quit_requested = True
+            self.api_registers.write(UC_ARM_REG_R0, 0)
+            return
+        if name == "s3eDeviceAbort":
+            raise RuntimeError("Guest requested process abort; see preceding debug messages")
+        if name in ("s3eAccelerometerStart", "s3eAccelerometerStop"):
+            available = self.input.accelerometer_available
+            self.input.accelerometer_active = available and name.endswith("Start")
+            record["result"] = "virtual_sensor" if available else "sensor_unavailable"
+            self.api_registers.write(UC_ARM_REG_R0, 0 if available else 1)
+            return
+        if name in ("s3eAccelerometerGetX", "s3eAccelerometerGetY", "s3eAccelerometerGetZ"):
+            self.api_registers.write(UC_ARM_REG_R0, self.input.acceleration(name[-1]) & 0xFFFFFFFF)
+            return
+        if name == "s3eAccelerometerGetInt" and args[0] == 0:
+            self.api_registers.write(UC_ARM_REG_R0, int(self.input.accelerometer_available))
+            return
+        if name in ("s3ePointerGetX", "s3ePointerGetY"):
+            self.api_registers.write(UC_ARM_REG_R0, (self.input.x if name.endswith("X") else self.input.y) & 0xFFFFFFFF)
+            return
+        if name == "s3ePointerUpdate":
+            if self.window:
+                self.window.pump()
+            self.invoke_callbacks(self.input.poll_pointer())
+            return
+        if name == "s3eKeyboardGetState":
+            self.api_registers.write(UC_ARM_REG_R0, self.input.key_state(args[0]))
+            return
+        if name == "s3eCompressionDecomp" and self.argument(4) == 2:
+            source, compressed_bytes, destination_pointer, size_pointer = args
+            destination = struct.unpack("<I", cpu.mem_read(destination_pointer, 4))[0]
+            capacity = struct.unpack("<I", cpu.mem_read(size_pointer, 4))[0]
+            if not destination:
+                raise UnsupportedImport("Compression output needs a guest allocator callback")
+            if capacity > 64 * 1024 * 1024 or compressed_bytes > 64 * 1024 * 1024:
+                raise ValueError("Compression transfer exceeds budget")
+            decoder = zlib.decompressobj()
+            content = decoder.decompress(bytes(cpu.mem_read(source, compressed_bytes)), capacity + 1)
+            if not decoder.eof or decoder.unused_data or len(content) > capacity:
+                raise ValueError("Incomplete/oversized zlib stream")
+            cpu.mem_write(destination, content)
+            cpu.mem_write(size_pointer, struct.pack("<I", len(content)))
+            record["decoded_bytes"] = len(content)
+            record["checksum_validated"] = True
+            self.api_registers.write(UC_ARM_REG_R0, 0)
+            return
+        if name == "s3ePointerSetInt" and 5 <= args[0] <= 12:
+            # SDK-owned pointer transform/state fields. Property 5 is byte-sized;
+            # the remaining fields are full words in the original runtime.
+            self.pointer_properties[args[0]] = args[1] & (0xFF if args[0] == 5 else 0xFFFFFFFF)
+            self.api_registers.write(UC_ARM_REG_R0, 0)
+            return
+        if name == "s3eKeyboardSetInt" and args[0] in (4, 6):
+            valid = args[0] != 4 or args[1] <= 1
+            if valid:
+                self.keyboard_properties[args[0]] = bool(args[1])
+            self.api_registers.write(UC_ARM_REG_R0, 0 if valid else 1)
+            return
+        if name in ("s3eDebugOutputString", "s3eDebugTraceLine"):
+            record["message"] = self.string(args[0])
+            print(f"{name}: {record['message']}", flush=True)
+            self.api_registers.write(UC_ARM_REG_R0, 0)
+            return
+        if name == "s3eExtGetHash":
+            if args[0] == TextInput.HASH and args[2] == 16:
+                functions = [self.import_trap("osread_slot_" + str(index)) for index in range(4)]
+                cpu.mem_write(args[1], struct.pack("<4I", *functions))
+                record["result"] = "provided_native_text_entry"
+                self.api_registers.write(UC_ARM_REG_R0, 0)
+                return
+            if args[0] == 3423291944 and args[2] == 80:
+                functions = [self.import_trap("thread_slot_" + str(index)) for index in range(20)]
+                cpu.mem_write(args[1], struct.pack("<20I", *functions))
+                record["result"] = "provided_single_thread_sync_services"
+                self.api_registers.write(UC_ARM_REG_R0, 0)
+                return
+            if args[0] == 2750204658 and args[2] == 4:
+                cpu.mem_write(args[1], struct.pack("<I", self.import_trap("s3eAndroidJNIGetVM")))
+                record["result"] = "provided_s3eAndroidJNI"
+                self.api_registers.write(UC_ARM_REG_R0, 0)
+                return
+            if args[0] == 401902751 and args[2] == 16:
+                functions = [self.import_trap("vfs_slot_" + str(index)) for index in range(4)]
+                cpu.mem_write(args[1], struct.pack("<4I", *functions))
+                record["result"] = "provided_vfs_research_interface"
+                self.api_registers.write(UC_ARM_REG_R0, 0)
+                return
+            # The SDK returns S3E_RESULT_ERROR (1) when an extension is absent.
+            # Leave the caller's output table untouched, matching that failure.
+            record["result"] = "extension_not_available"
+            self.api_registers.write(UC_ARM_REG_R0, 1)
+            return
+        if name == "s3eMemoryGetInt" and args[0] == 0:
+            # SDK property 0 reads the selected heap index.
+            self.api_registers.write(UC_ARM_REG_R0, self.current_heap)
+            return
+        if name == "s3eMemorySetInt" and args[0] == 0 and args[1] <= 7:
+            self.current_heap = args[1]
+            self.api_registers.write(UC_ARM_REG_R0, 0)
+            return
+        if name == "s3eMemorySetUserMemMgr":
+            # Base allocation APIs bypass this table. Keep the registered
+            # callback addresses for future platform-owned guest allocations.
+            if not args[0]:
+                self.user_memory_managers.pop(self.current_heap, None)
+                result = 0
+            else:
+                callbacks = struct.unpack("<3I", cpu.mem_read(args[0], 12))
+                result = 0 if all(callbacks) else 1
+                if result == 0:
+                    self.user_memory_managers[self.current_heap] = callbacks
+            self.api_registers.write(UC_ARM_REG_R0, result)
+            return
+        if name in ("s3eConfigGetString", "s3eConfigGetInt"):
+            section, key = self.string(args[0]), self.string(args[1])
+            record["section"], record["key"] = section, key
+            value = self.config.get(((section or "s3e").casefold(), key.casefold()))
+            result = 1
+            if value is not None and args[2]:
+                if name == "s3eConfigGetString":
+                    encoded = value.encode() + b"\0"
+                    if len(encoded) > 128:
+                        raise ValueError("ICF string exceeds SDK buffer limit")
+                    cpu.mem_write(args[2], encoded)
+                    result = 0
+                else:
+                    try:
+                        number = int(value, 0)
+                    except ValueError:
+                        pass
+                    else:
+                        cpu.mem_write(args[2], struct.pack("<I", number & 0xFFFFFFFF))
+                        result = 0
+            record["result"] = result
+            record["value"] = value
+            self.api_registers.write(UC_ARM_REG_R0, result)
+            return
+        if name == "s3eDeviceGetString" and args[0] in (31, 36, 37):
+            # Optional startup date/time text: the guest checks for an empty
+            # result and has a fallback. No device text is available here.
+            record["result"] = "property_not_available"
+            self.api_registers.write(UC_ARM_REG_R0, self.empty_string)
+            return
+        if name == "s3eDeviceGetInt" and args[0] in (0, 1, 8):
+            # Values verified against the supplied Android SDK runtime:
+            # logical OS ANDROID = 18; ARMv5TEJ architecture = 4. These describe
+            # the guest compatibility environment, not the host OS/CPU.
+            value = {0: 18, 1: 0x3E80, 8: 4}[args[0]]
+            record["result"] = value
+            self.api_registers.write(UC_ARM_REG_R0, value)
+            return
+        if name == "s3eDeviceSetInt" and args[0] == 15:
+            # The supplied SDK's 0x79a80 routine accepts only property 15,
+            # stores its low byte in device state, and returns success. The
+            # original game writes zero while returning from its entry point.
+            self.device_flags[15] = args[1] & 0xFF
+            self.api_registers.write(UC_ARM_REG_R0, 0)
+            return
+        if name in ("s3eTimerGetMs", "s3eTimerGetUTC"):
+            value = (self.game_clock.nanoseconds() // 1_000_000
+                     if name == "s3eTimerGetMs" else time.time_ns() // 1_000_000)
+            self.api_registers.write(UC_ARM_REG_R0, value & 0xFFFFFFFF)
+            self.api_registers.write(UC_ARM_REG_R1, value >> 32)
+            return
+        if name == "s3eTimerGetLocaltimeOffset":
+            # The research runtime deliberately uses UTC.
+            self.api_registers.write(UC_ARM_REG_R0, 0)
+            return
+        if name == "s3eSurfaceGetInt" and args[0] in (0, 1, 2, 3, 4, 5, 11):
+            # Virtual display dimensions for a headless startup probe. No
+            # framebuffer or graphics context is created by this query.
+            # Property 11 is the physical surface orientation (0..3), used
+            # by IwGx's width/height rotation logic, not a DPI measurement.
+            value = {0: self.surface_width, 1: self.surface_height,
+                     2: self.surface_pitch, 3: self.surface_format,
+                     4: self.surface_width, 5: self.surface_height, 11: 0}[args[0]]
+            record["result"] = value
+            self.api_registers.write(UC_ARM_REG_R0, value)
+            return
+        if name == "s3eSurfacePtr":
+            self.api_registers.write(UC_ARM_REG_R0, self.surface_buffer)
+            return
+        if name == "s3eSurfaceSetup" and args[0] in (0x422, 0x426, 0x435, 0x447):
+            pixel_format, pitch, buffer, rotation = args
+            pixel_bytes = (pixel_format & 0x70) >> 4
+            if rotation not in (0, 4):
+                raise UnsupportedImport("Rotated software surfaces are not implemented")
+            pitch = pitch or self.surface_width * pixel_bytes
+            result = 1
+            if pitch >= self.surface_width * pixel_bytes:
+                required = pitch * self.surface_height
+                if required > 32 * 1024 * 1024:
+                    raise ValueError("Surface exceeds memory budget")
+                buffer = buffer or self.allocate(required)
+                if buffer:
+                    cpu.mem_read(buffer, required)
+                    self.surface_pitch = pitch
+                    self.surface_format = pixel_format
+                    self.surface_buffer = buffer
+                    result = 0
+            self.api_registers.write(UC_ARM_REG_R0, result)
+            return
+        families = ("s3eSurface", "s3eDevice", "s3ePointer", "s3eKeyboard", "s3eGL")
+        for family in families:
+            if name == family + "Register":
+                event, callback, user = args[:3]
+                key = (family, event, callback)
+                result = 1 if not callback or key in self.callbacks else 0
+                if result == 0:
+                    self.callbacks[key] = user
+                record["result"] = result
+                self.api_registers.write(UC_ARM_REG_R0, result)
+                return
+            if name == family + "UnRegister":
+                key = (family, args[0], args[1])
+                result = 0 if key in self.callbacks else 1
+                self.callbacks.pop(key, None)
+                self.api_registers.write(UC_ARM_REG_R0, result)
+                return
         self.status = "unsupported_import"
         strings = []
         for argument in args:
@@ -846,6 +848,8 @@ class Runtime:
                                       frame_timing=self.graphics.frame_stats(),
                                       index_cache_hits=self.graphics.index_cache_hits,
                                       index_cache_bytes=self.graphics.index_cache_bytes,
+                                      vertex_pointer_updates=self.graphics.vertex_pointer_updates,
+                                      vertex_pointer_reuses=self.graphics.vertex_pointer_reuses,
                                       invalid_texture_call=self.graphics.invalid_texture_call,
                                       legacy_texture_filter_calls=self.graphics.texture_parameter_compatibility_calls)
             self.graphics.close()

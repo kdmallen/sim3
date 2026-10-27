@@ -84,6 +84,63 @@ class RuntimeServices(unittest.TestCase):
             self.call("s3eFileOpen", self.data("ram://../escape.dat"), mode)
         self.assertFalse((self.root / "escape.dat").exists())
 
+    def test_speed_clock_changes_continuously_and_timer_returns_64_bits(self):
+        from game_clock import GameClock
+        tick = [0]
+        clock = GameClock(lambda: tick[0])
+        self.runtime.game_clock = clock
+        tick[0] = 1_000_000_000
+        self.assertEqual(self.call("s3eTimerGetMs"), 1000)
+        for speed in (2, 4, 1):
+            before = clock.nanoseconds()
+            clock.cycle()
+            self.assertEqual(clock.speed, speed)
+            self.assertEqual(clock.nanoseconds(), before)
+            tick[0] += 1_000_000_000
+            self.assertEqual(clock.nanoseconds(), before + speed * 1_000_000_000)
+        tick[0] += (1 << 32) * 1_000_000
+        value = clock.nanoseconds() // 1_000_000
+        self.assertEqual(self.call("s3eTimerGetMs"), value & 0xFFFFFFFF)
+        self.assertEqual(self.runtime.cpu.reg_read(UC_ARM_REG_R1), value >> 32)
+        with self.assertRaises(ValueError):
+            clock.set_speed(3)
+
+    def test_fast_forward_scales_sdk_delay_but_leaves_utc_real(self):
+        from unittest.mock import patch
+        self.runtime.game_clock.set_speed(4)
+        with patch("boot_trace.time.sleep") as sleep:
+            self.call("s3eDeviceYield", 100)
+            sleep.assert_called_once_with(0.025)
+        with patch("boot_trace.time.time_ns", return_value=123_456_000_000):
+            self.assertEqual(self.call("s3eTimerGetUTC"), 123456)
+
+    def test_client_vertex_pointer_reuse_checks_bounds_and_keeps_live_data(self):
+        graphics = self.runtime.get_graphics()
+        pointer = self.data(struct.pack("<6f", -1, -1, 1, -1, 0, 1))
+        self.call("glVertexAttribPointer", 0, 2, 0x1406, 0, 0, pointer)
+        self.call("glEnableVertexAttribArray", 0)
+        graphics.prepare_arrays(2)
+        self.assertEqual(graphics.vertex_pointer_updates, 1)
+        self.runtime.cpu.mem_write(pointer, struct.pack("<2f", 0.5, 0.5))
+        graphics.prepare_arrays(2)
+        self.assertEqual(graphics.vertex_pointer_reuses, 1)
+        host = graphics.host_vertex_arrays[0][0]
+        self.assertEqual(ctypes.string_at(host, 8), struct.pack("<2f", 0.5, 0.5))
+        with self.assertRaises(ValueError):
+            graphics.prepare_arrays(self.runtime.HEAP_BYTES)
+        # A VBO descriptor must invalidate the prior client pointer.
+        output = self.data(bytes(4))
+        self.call("glGenBuffers", 1, output)
+        identifier = struct.unpack("<I", self.runtime.cpu.mem_read(output, 4))[0]
+        self.call("glBindBuffer", 0x8892, identifier)
+        self.call("glBufferData", 0x8892, 24, pointer, 0x88E4)
+        self.call("glVertexAttribPointer", 0, 2, 0x1406, 0, 0, 0)
+        self.assertNotIn(0, graphics.host_vertex_arrays)
+        self.call("glBindBuffer", 0x8892, 0)
+        self.call("glVertexAttribPointer", 0, 2, 0x1406, 0, 0, pointer)
+        graphics.prepare_arrays(2)
+        self.assertEqual(graphics.vertex_pointer_updates, 2)
+
     def test_file_metadata_returns_both_arm_result_registers(self):
         target = self.root / "saves/metadata.dat"
         target.write_bytes(b"file")
@@ -290,7 +347,18 @@ class RuntimeServices(unittest.TestCase):
         with self.assertRaises(UnsupportedImport):
             self.call("s3eMemoryGetInt", 999)
         self.assertEqual(self.runtime.fast_services.counts(),
-                         {"thread_slot_4": 1, "s3eMemoryGetInt": 1, "s3eMemorySetInt": 1})
+                         {"thread_slot_4": 1, "s3eMemoryGetInt": 1, "s3eMemorySetInt": 1,
+                          "s3eFreeBase": 0})
+
+    def test_fast_null_free_preserves_checked_non_null_frees(self):
+        self.call("s3eFreeBase", 0)
+        self.assertEqual(self.runtime.fast_services.counts()["s3eFreeBase"], 1)
+        self.assertEqual(self.runtime.counts["s3eFreeBase"], 0)
+        pointer = self.data(b"allocated")
+        self.call("s3eFreeBase", pointer)
+        self.assertNotIn(pointer, self.runtime.allocations)
+        with self.assertRaises(ValueError):
+            self.call("s3eFreeBase", pointer)
 
     def test_os_text_extension_returns_utf8_default_text_and_cancellation(self):
         requests = []
@@ -524,6 +592,15 @@ class RuntimeServices(unittest.TestCase):
         pixel = self.data(bytes(4))
         self.call("glReadPixels", 400, 240, 1, 1, 0x1908, 0x1401, pixel)
         self.assertEqual(bytes(self.runtime.cpu.mem_read(pixel, 4)), b"\xff\x00\x00\xff")
+        # Reusing an unchanged descriptor must still render rewritten vertex RAM.
+        pointer = self.runtime.graphics.vertex_arrays[location]["pointer"]
+        self.runtime.cpu.mem_write(pointer, struct.pack("<6f", -1, -1, -0.9, -1, -1, -0.9))
+        self.call("glClear", 0x4000)
+        self.call("glDrawArrays", 4, 0, 3)
+        self.call("glReadPixels", 400, 240, 1, 1, 0x1908, 0x1401, pixel)
+        self.assertEqual(bytes(self.runtime.cpu.mem_read(pixel, 4)), b"\x00\x00\x00\xff")
+        self.assertGreater(self.runtime.graphics.vertex_pointer_reuses, 0)
+        self.runtime.cpu.mem_write(pointer, struct.pack("<6f", -1, -1, 1, -1, 0, 1))
         # After deleting a bound index buffer, the next client-side index
         # pointer must be translated to host RAM, rather than treated as a VBO offset.
         output = self.data(bytes(4))

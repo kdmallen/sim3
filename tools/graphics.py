@@ -67,6 +67,9 @@ class Graphics:
         self.texture_bindings = {}
         self.texture_parameter_compatibility_calls = 0
         self.vertex_arrays = {}
+        self.host_vertex_arrays = {}
+        self.vertex_pointer_updates = 0
+        self.vertex_pointer_reuses = 0
         self.enabled_arrays = set()
         self.buffer_data = {}
         self.index_ranges = OrderedDict()
@@ -310,7 +313,10 @@ class Graphics:
         if name == "eglCreateWindowSurface":
             return self.handle(self.create_surface(self.real(a(1))))
         if name == "eglMakeCurrent":
-            return self.make_current(self.real(a(1)), self.real(a(2)), self.real(a(3)))
+            result = self.make_current(self.real(a(1)), self.real(a(2)), self.real(a(3)))
+            if result:
+                self.host_vertex_arrays.clear()
+            return result
         if name in ("eglGetCurrentContext", "eglGetCurrentDisplay"):
             return self.handle(self.egl_function(name, C.c_void_p)())
         if name == "eglGetCurrentSurface":
@@ -407,6 +413,7 @@ class Graphics:
                                          "stride": stride, "pointer": pointer, "buffer": self.array_buffer}
             if self.array_buffer:
                 function(*raw[:-1], C.c_void_p(pointer))
+                self.host_vertex_arrays.pop(index, None)
             return None
         if name in ("glDrawArrays", "glDrawElements"):
             self.draw_buffers = []
@@ -510,9 +517,10 @@ class Graphics:
                     self.array_buffer = 0
                 if self.element_buffer in deleted:
                     self.element_buffer = 0
-                for vertex in self.vertex_arrays.values():
+                for index, vertex in self.vertex_arrays.items():
                     if vertex["buffer"] in deleted:
                         vertex["buffer"] = 0
+                        self.host_vertex_arrays.pop(index, None)
                 for identifier in deleted:
                     self.buffer_data.pop(identifier, None)
             elif name == "glDeleteTextures":
@@ -662,6 +670,7 @@ class Graphics:
         bind = self.gl_function("glBindBuffer", None, C.c_uint, C.c_uint)
         pointer_function = self.gl_function("glVertexAttribPointer", None, C.c_uint,
                                             C.c_int, C.c_uint, C.c_ubyte, C.c_int, C.c_void_p)
+        changed_binding = False
         for index in self.enabled_arrays:
             if index not in self.vertex_arrays:
                 raise ValueError("Enabled vertex array has no defined pointer")
@@ -674,12 +683,24 @@ class Graphics:
                 raise GraphicsUnsupported("Unsupported client vertex type")
             stride = vertex["stride"] or vertex["size"] * element
             length = maximum * stride + vertex["size"] * element
-            buffer = self.input_buffer(vertex["pointer"], length)
-            self.draw_buffers.append(buffer)
-            bind(0x8892, 0)
+            # GuestMemory owns pinned mappings for the entire runtime. Recheck
+            # bounds for every draw, but reuse the driver's pointer descriptor.
+            # Vertex contents remain live: animations never use a cached copy.
+            pointer = self.runtime.memory.pointer(vertex["pointer"], length)
+            descriptor = (pointer.value, vertex["size"], vertex["type"],
+                          vertex["normalized"], vertex["stride"])
+            if self.host_vertex_arrays.get(index) == descriptor:
+                self.vertex_pointer_reuses += 1
+                continue
+            if not changed_binding and self.array_buffer:
+                bind(0x8892, 0)
+                changed_binding = True
             pointer_function(index, vertex["size"], vertex["type"], vertex["normalized"],
-                             vertex["stride"], C.cast(buffer, C.c_void_p))
-        bind(0x8892, self.array_buffer)
+                             vertex["stride"], pointer)
+            self.host_vertex_arrays[index] = descriptor
+            self.vertex_pointer_updates += 1
+        if changed_binding:
+            bind(0x8892, self.array_buffer)
 
     def maximum_index(self, indices, element_bytes):
         # Mesh topology is often reused across objects and animation frames.

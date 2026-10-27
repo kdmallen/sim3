@@ -1,33 +1,37 @@
 # Windows downloads
 
-[Download Sims3-Render-Update.zip](https://github.com/kdmallen/sim3/blob/main/downloads/Sims3-Render-Update.zip)
-(53,693 bytes). Click **Download raw file**.
+[Download Sims3-Performance-Update.zip](https://github.com/kdmallen/sim3/blob/main/downloads/Sims3-Performance-Update.zip)
+(54,874 bytes). Click **Download raw file**.
 Close the game, copy all ZIP contents beside **Sims3.exe**, replace files and
 merge tools folders, then restart. Saves remain in AppData. This is cumulative:
 sound, background play, smooth F4/F6 tilt, and earlier fixes are included.
 Earlier patch URLs also supply this latest update.
 
-The renderer now avoids an extra index-buffer copy and reuses validated index
-bounds for identical mesh data. Changed data is revalidated; the cache is capped
-at 2 MiB/256 entries. Scene detail, simulation, and controls are unchanged.
-This targets CPU overhead in busy scenes. The reported 20+ to 7.6 FPS drop in
-another Sim's house has not been remeasured on the user's PC.
+**F8 cycles 1x / 2x / 4x game speed**, displayed in the title. Restarting resets
+speed to 1x. Actual acceleration depends on CPU headroom. Menus and animations
+also accelerate; return to 1x for minigames. Audio and input remain at real speed.
+F3 shows FPS. F1 shows controls. F4/F6 smooth tilt and F5 shake are unchanged.
 
-31 tests pass on Linux and the Windows runtime under Wine. Tests include actual
-pixel rendering, buffer deletion, modified index contents, and cache limits.
-A repeated 8192-index microbenchmark improved substantially; that is a CPU bounds
-processing measurement and does not predict total game FPS.
+Rendering reuses driver vertex-pointer descriptions while checking bounds on
+each draw. The pinned vertex data remains live, so animations update normally.
+Scalar ARM register writes reuse native call buffers; graphics and allocation
+services take shorter dispatch paths. A native free(NULL) helper avoids a host
+callback for a no-op. Non-null frees retain allocator checks.
 
-Hold F4/F6 for smooth tilt, release to level. F5 is unchanged; F7 jerks upward.
-Mouse click/drag is touch, wheel zooms, F1 shows controls, F3 shows FPS.
-Full gameplay and the prior repeated-fishing freeze remain unverified.
+35 ABI/rendering tests pass on Linux and the packaged Windows runtime under
+Wine, including live vertex rewrites, buffer transitions, timer continuity and
+64-bit returns, and checked allocator fallback. Physical Windows FPS and full
+crowded-house gameplay remain unverified. See research/performance-update.json
+for development evidence. A single town-map comparison at 1x measured 14.81
+versus 14.88 FPS: no meaningful average improvement, so the reported town-map
+drop is **not confirmed fixed**. The earlier repeated-fishing freeze remains unverified.
 
 [Complete Sims3-Windows-test.zip](https://github.com/kdmallen/sim3/blob/main/downloads/Sims3-Windows-test.zip)
-includes the update. Download the file itself with **Download raw file**, extract
-fully, and run Sims3.exe. No separate emulator or Python install is needed.
-The full ZIP uses Git LFS; automatic repository source ZIPs can contain pointers.
-EA's original agreement remains for you to review and accept.
+includes the update. Click **Download raw file**, extract fully, and run Sims3.exe.
+No separate emulator or Python install is needed. The full ZIP uses Git LFS;
+automatic repository source ZIPs can contain pointers. EA's agreement remains
+for you to review and accept.
 
-SHA256 full: `09809653c9844cb29f0c2d4ad15e17893cf2fcc5ec5fc69ef7a354e671529f4b`
+SHA256 full: `ada9c1088f88223551e7f17a00a33a914ab5c900e5f168ab9e8a202070f42d93`
 
-SHA256 patch (and earlier aliases): `f8ebfa6f3e9ca6e6847ab05007de6def00040a918bbe1dd9f6e4f514556513ca`
+SHA256 patch (and earlier aliases): `cf90478f53851dfb7fd5fb2afa5a6a1e2a02bb37399cfdbdb0b9bd91800f440f`

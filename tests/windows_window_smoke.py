@@ -7,16 +7,25 @@ from types import SimpleNamespace
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tools"))
 from input_device import InputDevice
 from win32_window import Win32Window
+from game_clock import GameClock
 
 
 def main():
     runtime = SimpleNamespace(surface_width=800, surface_height=480,
                               quit_requested=False, callbacks={})
     runtime.input = InputDevice(runtime)
+    runtime.game_clock = GameClock()
     window = Win32Window(runtime)
     try:
         send = window.bind(window.user, "SendMessageW", C.c_ssize_t, C.c_void_p,
                            C.c_uint32, C.c_size_t, C.c_ssize_t)
+        for speed in (2, 4, 1):
+            send(window.handle, 0x0100, 119, 0)
+            assert runtime.game_clock.speed == speed
+            send(window.handle, 0x0100, 119, 1 << 30)
+            assert runtime.game_clock.speed == speed
+            send(window.handle, 0x0101, 119, 0)
+        assert not runtime.input.keyboard_events
         position = 143 << 16 | 239
         send(window.handle, 0x0201, 1, position)
         assert runtime.input.buttons == {0}

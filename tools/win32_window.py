@@ -138,6 +138,12 @@ class Win32Window:
                         self.bind(self.user, "ReleaseCapture", C.c_int32)()
                 return 0
             if message in (0x0100, 0x0101):
+                if wparam == 119:  # F8: host-only, ignore auto-repeat.
+                    if message == 0x0100 and not lparam & (1 << 30):
+                        self.runtime.game_clock.cycle()
+                        self.title_updated = 0
+                        self.update_frame_rate(0)
+                    return 0
                 if message == 0x0100 and wparam == 114 and not lparam & (1 << 30):
                     self.show_fps = not self.show_fps
                     self.title_updated = 0
@@ -253,6 +259,7 @@ class Win32Window:
             "F5: shake the phone (hold for continuous shaking).\n"
             "F7: quick upward jerk for fishing.\n"
             "F3: show or hide frame rate.\n"
+            "F8: cycle game speed 1x / 2x / 4x (limited by your computer).\n"
             "Escape: back.\n\n"
             "Name prompts: type normally; Enter confirms, Escape cancels.\n"
             "Ctrl+C / Ctrl+V work in the text prompt.", "The Sims 3 — Controls", 0)
@@ -264,7 +271,11 @@ class Win32Window:
         if now - self.title_updated < 1:
             return
         if self.show_fps or not self.title_updated:
-            title = f"The Sims 3 Mobile — {fps:.1f} FPS" if self.show_fps else "The Sims 3 Mobile"
+            title = "The Sims 3 Mobile"
+            if self.runtime.game_clock.speed != 1:
+                title += f" — {self.runtime.game_clock.speed}x speed"
+            if self.show_fps:
+                title += f" — {fps:.1f} FPS"
             self.bind(self.user, "SetWindowTextW", C.c_int32, C.c_void_p, C.c_wchar_p)(self.handle, title)
         self.title_updated = now
 

@@ -1,0 +1,160 @@
+{
+  "version": "speed-7",
+  "tests": {
+    "linux_passed": 35,
+    "windows_under_wine_passed": 35,
+    "native_f8_keyboard_auto_repeat_and_key_up_passed": true,
+    "original_arm_fishing_steering_and_pull_detector_passed": true
+  },
+  "implementation": [
+    "Continuous monotonic game timer with F8 cycle 1x/2x/4x; no time discontinuities",
+    "Scaled SDK yield delays; real clocks/audio/input/diagnostics unchanged",
+    "Checked live pinned client vertex pointers with driver descriptor reuse",
+    "Reusable scalar ARM register write buffer using pinned Unicorn ABI",
+    "Earlier graphics and allocator dispatch; native no-op free(NULL), checked non-null fallback"
+  ],
+  "microbenchmarks": {
+    "old_vertex_setup": 0.17771,
+    "new_vertex_setup": 0.066915,
+    "old_register_write": 0.05274,
+    "new_register_write": 0.021576,
+    "iterations": 20000,
+    "scope": "Linux CPU microbenchmarks; median of 5; no gameplay FPS prediction"
+  },
+  "limitations": [
+    "Physical Windows 11 town-map FPS not measured",
+    "Full crowded-house gameplay not validated",
+    "Fast-forward is CPU-limited and also speeds menus/animations",
+    "Repeated-fishing freeze remains unverified"
+  ],
+  "actual_game_check": {
+    "status": "frame_limit_reached",
+    "error": null,
+    "frames": 2100,
+    "draws": 176127,
+    "vertex_pointer_updates": 282011,
+    "vertex_pointer_reuses": 287474,
+    "native_null_free_calls": 49553,
+    "pending_gl_errors": [
+      1282
+    ],
+    "same_error_queued_in_baseline": true
+  },
+  "speed_timer_samples": [
+    {
+      "frame": 1650,
+      "real_ns": 104882427965500,
+      "game_ns": 179617547900,
+      "speed": 1,
+      "frame_stats": {
+        "recent_fps": 7.59,
+        "p95_frame_ms": 374.9,
+        "sample_frames": 180
+      }
+    },
+    {
+      "frame": 1750,
+      "real_ns": 104892313837900,
+      "game_ns": 189503418400,
+      "speed": 1,
+      "frame_stats": {
+        "recent_fps": 14.88,
+        "p95_frame_ms": 127.27,
+        "sample_frames": 180
+      },
+      "measured_timer_ratio": 0.9999998078065422
+    },
+    {
+      "frame": 1800,
+      "real_ns": 104900331228600,
+      "game_ns": 197525010000,
+      "speed": 2,
+      "frame_stats": {
+        "recent_fps": 9.62,
+        "p95_frame_ms": 290.11,
+        "sample_frames": 180
+      },
+      "measured_timer_ratio": 1.0005239734668288
+    },
+    {
+      "frame": 1850,
+      "real_ns": 104906885862700,
+      "game_ns": 210634277400,
+      "speed": 2,
+      "frame_stats": {
+        "recent_fps": 7.52,
+        "p95_frame_ms": 306.03,
+        "sample_frames": 180
+      },
+      "measured_timer_ratio": 1.999999877948946
+    },
+    {
+      "frame": 1900,
+      "real_ns": 104912186159800,
+      "game_ns": 221235811000,
+      "speed": 4,
+      "frame_stats": {
+        "recent_fps": 7.35,
+        "p95_frame_ms": 303.83,
+        "sample_frames": 180
+      },
+      "measured_timer_ratio": 2.0001772353478073
+    },
+    {
+      "frame": 1950,
+      "real_ns": 104918007796700,
+      "game_ns": 244522359800,
+      "speed": 4,
+      "frame_stats": {
+        "recent_fps": 7.64,
+        "p95_frame_ms": 267.55,
+        "sample_frames": 180
+      },
+      "measured_timer_ratio": 4.000000206127592
+    },
+    {
+      "frame": 2000,
+      "real_ns": 104923947831300,
+      "game_ns": 268280528300,
+      "speed": 1,
+      "frame_stats": {
+        "recent_fps": 8.5,
+        "p95_frame_ms": 246.82,
+        "sample_frames": 180
+      },
+      "measured_timer_ratio": 3.9996683689350903
+    },
+    {
+      "frame": 2050,
+      "real_ns": 104929449306700,
+      "game_ns": 273782003600,
+      "speed": 1,
+      "frame_stats": {
+        "recent_fps": 8.78,
+        "p95_frame_ms": 203.34,
+        "sample_frames": 180
+      },
+      "measured_timer_ratio": 0.9999999818230578
+    }
+  ],
+  "town_comparison": {
+    "environment": "Windows packaged Python/ANGLE under Wine 10; same private save, frame taps, camera; one run each, no cProfile; diagnostic draws and screenshots enabled",
+    "baseline_version": "render-6",
+    "updated_version": "speed-7",
+    "speed": 1,
+    "sample_frame": 1750,
+    "baseline": {
+      "recent_fps": 14.81,
+      "p95_frame_ms": 159.79,
+      "sample_frames": 180
+    },
+    "updated": {
+      "recent_fps": 14.88,
+      "p95_frame_ms": 127.27,
+      "sample_frames": 180
+    },
+    "baseline_last_100_frames_seconds": 9.9017207,
+    "updated_last_100_frames_seconds": 9.8858724,
+    "conclusion": "No meaningful average town-map FPS improvement measured; CPU microbenchmark improvements do not establish an FPS fix. Single-run p95 lower, but insufficient to claim a gameplay improvement."
+  }
+}

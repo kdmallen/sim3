@@ -42,7 +42,7 @@ class ArmCode:
 
 class FastServices:
     ADDRESS = 0x61000000
-    NAMES = ("thread_slot_4", "s3eMemoryGetInt", "s3eMemorySetInt")
+    NAMES = ("thread_slot_4", "s3eMemoryGetInt", "s3eMemorySetInt", "s3eFreeBase")
 
     def __init__(self, runtime):
         self.runtime = runtime
@@ -68,10 +68,12 @@ class FastServices:
             elif name == "s3eMemoryGetInt":
                 code.load(1, self.heap_address)
                 code.emit(0xE5910000)  # ldr r0, [r1]
-            else:
+            elif name == "s3eMemorySetInt":
                 code.load(2, self.heap_address)
                 code.emit(0xE5821000)  # str r1, [r2]
                 code.emit(0xE3A00000)  # mov r0, #0
+            # free(NULL) is a no-op. Every non-null pointer still goes through
+            # the checked allocator, including errors and range coalescing.
             code.emit(0xE12FFF1E)  # bx lr
             code.labels["fallback"] = len(code.words)
             code.load(15, fallback)
@@ -91,5 +93,6 @@ class FastServices:
         self.runtime.cpu.mem_write(self.heap_address, struct.pack("<I", value))
 
     def counts(self):
-        values = struct.unpack("<3I", self.runtime.cpu.mem_read(self.ADDRESS + 0x810, 12))
+        values = struct.unpack("<" + "I" * len(self.NAMES),
+                               self.runtime.cpu.mem_read(self.ADDRESS + 0x810, len(self.NAMES) * 4))
         return dict(zip(self.NAMES, values))

@@ -1,6 +1,7 @@
 """Pinned guest RAM with checked host views for synchronous graphics transfers."""
 import ctypes as C
 import mmap
+from unicorn import UcError
 
 
 class GuestMemory:
@@ -41,6 +42,9 @@ class ArmRegisters:
         from unicorn.unicorn_py3.unicorn import uclib
         self.cpu = cpu
         self.function = uclib.uc_reg_read_batch
+        self.write_function = uclib.uc_reg_write
+        self.write_value = C.c_uint64()
+        self.write_pointer = C.byref(self.write_value)
         self.identifiers = (C.c_int * len(registers))(*registers)
         self.values = (C.c_uint64 * len(registers))()
         self.pointers = (C.c_void_p * len(registers))(*(
@@ -48,8 +52,15 @@ class ArmRegisters:
             for index in range(len(registers))))
 
     def read(self):
-        from unicorn import UcError
         status = self.function(self.cpu._uch, self.identifiers, self.pointers, len(self.values))
         if status:
             raise UcError(status)
         return tuple(self.values)
+
+    def write(self, register, value):
+        # Runtime calls this only for scalar ARM registers. The guest CPU and
+        # callbacks run on one thread; no worker shares these scratch buffers.
+        self.write_value.value = value
+        status = self.write_function(self.cpu._uch, register, self.write_pointer)
+        if status:
+            raise UcError(status)
