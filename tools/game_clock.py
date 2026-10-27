@@ -13,12 +13,12 @@ class GameClock:
         return self.elapsed + (self.clock() - self.anchor) * self.speed
 
     def set_speed(self, speed):
-        if speed not in (1, 2, 4):
-            raise ValueError("Game speed must be 1, 2, or 4")
+        if speed not in (1, 2, 4, 6, 8):
+            raise ValueError("Game speed must be 1, 2, 4, 6, or 8")
         now = self.clock()
         self.elapsed += (now - self.anchor) * self.speed
         self.anchor = now
         self.speed = speed
 
     def cycle(self):
-        self.set_speed({1: 2, 2: 4, 4: 1}[self.speed])
+        self.set_speed({1: 2, 2: 4, 4: 6, 6: 8, 8: 1}[self.speed])

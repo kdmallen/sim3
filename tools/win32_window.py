@@ -259,7 +259,7 @@ class Win32Window:
             "F5: shake the phone (hold for continuous shaking).\n"
             "F7: quick upward jerk for fishing.\n"
             "F3: show or hide frame rate.\n"
-            "F8: cycle game speed 1x / 2x / 4x (limited by your computer).\n"
+            "F8: cycle game speed 1x / 2x / 4x / 6x / 8x (limited by your computer).\n"
             "Escape: back.\n\n"
             "Name prompts: type normally; Enter confirms, Escape cancels.\n"
             "Ctrl+C / Ctrl+V work in the text prompt.", "The Sims 3 — Controls", 0)

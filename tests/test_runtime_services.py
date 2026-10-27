@@ -91,7 +91,7 @@ class RuntimeServices(unittest.TestCase):
         self.runtime.game_clock = clock
         tick[0] = 1_000_000_000
         self.assertEqual(self.call("s3eTimerGetMs"), 1000)
-        for speed in (2, 4, 1):
+        for speed in (2, 4, 6, 8, 1):
             before = clock.nanoseconds()
             clock.cycle()
             self.assertEqual(clock.speed, speed)

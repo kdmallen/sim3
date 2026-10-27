@@ -156,5 +156,6 @@
     "baseline_last_100_frames_seconds": 9.9017207,
     "updated_last_100_frames_seconds": 9.8858724,
     "conclusion": "No meaningful average town-map FPS improvement measured; CPU microbenchmark improvements do not establish an FPS fix. Single-run p95 lower, but insufficient to claim a gameplay improvement."
-  }
+  },
+  "superseded_by": "speed8-update.json"
 }

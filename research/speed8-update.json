@@ -1,0 +1,22 @@
+{
+  "version": "speed-8",
+  "previous_version": "speed-7",
+  "change": "F8 now cycles 1x, 2x, 4x, 6x, 8x, then 1x; clock continuity and restart at 1x retained",
+  "fast_forward_multipliers": [
+    1,
+    2,
+    4,
+    6,
+    8
+  ],
+  "validation": {
+    "linux_runtime_tests_passed": 35,
+    "windows_under_wine_runtime_tests_passed": 35,
+    "native_f8_cycle_and_auto_repeat_test_passed": true
+  },
+  "limitations": [
+    "Actual acceleration depends on CPU capacity",
+    "No new town-map or crowded-house FPS fix",
+    "Full gameplay at 6x/8x not manually validated"
+  ]
+}

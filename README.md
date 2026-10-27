@@ -40,10 +40,10 @@ If needed, Ctrl+wheel over the slider's middle calibrates its position.
 | Escape | Back |
 | F1 | Controls help |
 | F3 | Show or hide FPS |
-| F8 | Cycle 1× / 2× / 4× game speed |
+| F8 | Cycle 1× / 2× / 4× / 6× / 8× game speed |
 
 F8 accelerates the game's monotonic clock and requested yield delays, with no
-clock jump when switching speed. The title shows 2×/4×; restarting resets to 1×.
+clock jump when switching speed. The title shows the selected multiplier; restarting resets to 1×.
 Actual acceleration depends on CPU headroom. Menus and animations accelerate too;
 use 1× for precise minigames. Music, phone input, real UTC, and diagnostics keep
 real time. Faster game speed does not create additional rendering capacity.
