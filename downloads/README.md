@@ -1,13 +1,13 @@
 # Windows downloads
 
 [Download Sims3-Performance-Update.zip](https://github.com/kdmallen/sim3/blob/main/downloads/Sims3-Performance-Update.zip)
-(54,908 bytes). Click **Download raw file**.
+(54,942 bytes). Click **Download raw file**.
 Close the game, copy all ZIP contents beside **Sims3.exe**, replace files and
 merge tools folders, then restart. Saves remain in AppData. This is cumulative:
 sound, background play, smooth F4/F6 tilt, and earlier fixes are included.
 Earlier patch URLs also supply this latest update.
 
-**F8 cycles 1x / 2x / 4x / 6x / 8x game speed**, displayed in the title. Restarting resets
+**F8 cycles 1x / 2x / 4x / 6x / 8x / 10x / 12x game speed**, displayed in the title. Restarting resets
 speed to 1x. Actual acceleration depends on CPU headroom. Menus and animations
 also accelerate; return to 1x for minigames. Audio and input remain at real speed.
 F3 shows FPS. F1 shows controls. F4/F6 smooth tilt and F5 shake are unchanged.
@@ -32,6 +32,6 @@ No separate emulator or Python install is needed. The full ZIP uses Git LFS;
 automatic repository source ZIPs can contain pointers. EA's agreement remains
 for you to review and accept.
 
-SHA256 full: `32e6ff25ebe3b0dfd060cd8fa9229ab07943a4d3239cc919638d54e0afd24675`
+SHA256 full: `3ed733c46b7988266be48d7a976b6333dbfdde6f73e267ea7769b9d8c12e0a42`
 
-SHA256 patch (and earlier aliases): `f3c82082a6aaa95593acc888ff6ab32bbec9022bdb1e04ad4e778ec91aa9755c`
+SHA256 patch (and earlier aliases): `a64e44cd21267f28556372a9a6478718b82ea16769322fa472ddd5c1f8dbbfc7`

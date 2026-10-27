@@ -19,7 +19,7 @@ def main():
     try:
         send = window.bind(window.user, "SendMessageW", C.c_ssize_t, C.c_void_p,
                            C.c_uint32, C.c_size_t, C.c_ssize_t)
-        for speed in (2, 4, 6, 8, 1):
+        for speed in (2, 4, 6, 8, 10, 12, 1):
             send(window.handle, 0x0100, 119, 0)
             assert runtime.game_clock.speed == speed
             send(window.handle, 0x0100, 119, 1 << 30)

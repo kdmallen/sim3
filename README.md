@@ -40,7 +40,7 @@ If needed, Ctrl+wheel over the slider's middle calibrates its position.
 | Escape | Back |
 | F1 | Controls help |
 | F3 | Show or hide FPS |
-| F8 | Cycle 1× / 2× / 4× / 6× / 8× game speed |
+| F8 | Cycle 1× / 2× / 4× / 6× / 8× / 10× / 12× game speed |
 
 F8 accelerates the game's monotonic clock and requested yield delays, with no
 clock jump when switching speed. The title shows the selected multiplier; restarting resets to 1×.

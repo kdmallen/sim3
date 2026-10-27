@@ -1,14 +1,14 @@
 {
   "file": "downloads/Sims3-Windows-test.zip",
-  "bytes": 146520120,
-  "sha256": "32e6ff25ebe3b0dfd060cd8fa9229ab07943a4d3239cc919638d54e0afd24675",
+  "bytes": 146520154,
+  "sha256": "3ed733c46b7988266be48d7a976b6333dbfdde6f73e267ea7769b9d8c12e0a42",
   "zip_crc_validation_passed": true,
-  "version": "speed-8",
+  "version": "speed-9",
   "files": 2819,
   "patch": {
     "file": "downloads/Sims3-Performance-Update.zip",
-    "bytes": 54908,
-    "sha256": "f3c82082a6aaa95593acc888ff6ab32bbec9022bdb1e04ad4e778ec91aa9755c",
+    "bytes": 54942,
+    "sha256": "a64e44cd21267f28556372a9a6478718b82ea16769322fa472ddd5c1f8dbbfc7",
     "zip_crc_validation_passed": true
   },
   "legacy_patch_urls_are_current_aliases": true,
